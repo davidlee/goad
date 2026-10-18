@@ -6040,6 +6040,687 @@ for VT rows: `nix develop --command cargo test -p goad-check --test kit
   README says so; a reader who wants their configured directories exports
   them.
 
+### PHASE-07 — the fence gate, and the protocol and transport reference
+
+**Written by a phase-sheet agent, not the executor**, at b09a61f (*012
+PHASE-06: done*). This sheet is the plan's second reading. Where it restates
+a plan criterion it quotes it; where it narrows or specifies one it says so
+and why. It repairs nothing: what reads as wrong in the plan or design is
+under **Findings** as a PLAN QUESTION, and the tasks it blocks are marked
+`[!]`.
+
+**Objective** (quoted, `plan.md` PHASE-07): *"every `json` and `toml` fence
+in the kit is tagged and checked by the gate through the host's own doors, by
+a fence scanner the workspace shares; the kit names no path outside itself;
+and the reference's `protocol.md` and `running.md` exist with their examples
+checked."*
+
+```
+tests/support/fences.rs   fences(markdown) -> Vec<Fence { info, body: Range<usize> }>
+   │ #[path]                                  │ #[path]
+   ▼                                          ▼
+goad-check  tests/kit/  (target `kit`)       goad-shell  tests/integration/  (target `integration`)
+   ├─ tagged.rs     VT-1..VT-4               └─ round_trip.rs  VT-7: the exerciser README's
+   │    every *.md under kit/ ─► each json/toml fence ─► its role's door        `toml` fence
+   │      goad:response …   read_response            (fenced_block removed)
+   │      goad:request      Request::{Evaluate,Respond} serialized; respond oracle
+   │      goad:envelope     envelope::normalize
+   │      goad:config       Config::parse
+   ├─ standalone.rs VT-5, VT-6  every file under kit/ × `git ls-files` at the root
+   ├─ tree.rs       kit root + the walk (refactor: examples.rs reuses it)
+   └─ examples.rs   PHASE-06's, unchanged but for the refactor
+kit/skills/goad-backend/reference/{protocol.md, running.md}   (new prose; fences tagged)
+```
+
+The module names `tagged`, `standalone`, `tree` and the file name `fences.rs`
+are this sheet's proposal (D-1, D-6); the executor may rename one by
+recording why under **Decisions taken during execution**.
+
+**Entry**
+- **EN-1** (quoted): *"PHASE-06 done."* **Discharged 2026-10-18 at
+  b09a61f.** §Status has PHASE-06 `done` (as of 2026-10-18), and every exit
+  box of the PHASE-06 sheet is ticked, VH-1..VH-3 included. `nix develop
+  --command just check` (the bare git form) exited **0**: `cargo build
+  --workspace`; both test tiers, **740 passed, 0 failed**, summed over all 34
+  `test result` lines (PHASE-06's 738 + its 2); `cargo test -p
+  goad-semantics`; `deno check exercisers/typescript/backend.ts
+  kit/skills/goad-backend/examples/breadcrumbs/backend.ts`; `cargo clippy
+  --workspace --all-targets -- -D warnings` with no `warning` line in the log;
+  `cargo fmt --all --check`. Toolchain `rustc 1.100.0-beta.5 (8ea38001b
+  2026-10-13)`. Log (scratch, not durable; these lines are the record):
+  `/tmp/claude-1000/-home-david-dev-goad/d1f8b237-7c10-46f1-b88b-830cd437a3f6/scratchpad/en1.log`.
+
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- (quoted) *"`crates/goad-check/tests/kit/`"* — new modules beside
+  `examples.rs`, `main.rs`'s declarations and its comment, and
+  `examples.rs` for the refactor (task 6) only.
+- (quoted) *"`tests/support/` (new: the fence scanner's file)"* — exactly one
+  new file, `tests/support/fences.rs`. `driving.rs`, `scripting.rs` and
+  `waiting.rs` are not touched.
+- (quoted) *"`crates/goad-shell/tests/integration/{main.rs, round_trip.rs}`
+  (the scanner's include, and `fenced_block` removed)"*. Nothing else in
+  either file.
+- (quoted) *"`kit/skills/goad-backend/reference/{protocol.md, running.md}`"*.
+- (quoted) *"the example READMEs (fence tags only)"*. Item 3 below found
+  every fence there already passes, so the expected edit here is **none**;
+  the planted breaches of VA-5 and R-3 are restored, not edits.
+- `docs/slices/012/notes.md`: this sheet, §Status, §Harvest (§Open's FU-5
+  row, VA-4). Bookkeeping (`docs/AGENTS.md` §Execute).
+
+Not surfaces, and so a STOP if the work seems to need them: any
+`Cargo.toml` (no dependency is needed: item 2); `SKILL.md` (PHASE-08's);
+`reference/{scheduling.md, events.md, checking.md}` (PHASE-08's);
+`crates/*/src/`; `crates/goad-check/tests/binary/`; `exercisers/` (its
+README's fence is read, not edited); `.gitignore`; `flake.nix`,
+`flake.lock`; `canon-delta.md` (it names none of this phase's tests:
+`command grep -n 'fence\|nothing_in_the_kit\|tests/kit\|round_trip'
+docs/slices/012/canon-delta.md` → no PHASE-07 path); any canon document;
+`design.md`, `plan.md`.
+
+**Reading list** (by symbol; `command grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md` §PHASE-07 whole; §PHASE-08's VT-1 and VT-2 (what
+  this phase's scanner and headings must make possible); §Sequencing &
+  rationale, *Mutation evidence* and *Invariant reads*; §Owed to audit and
+  close, *Test names are commitments*.
+- `docs/slices/012/design.md` §5.2.6: *The reference's structure*, *The
+  tagged-fence convention* and its table, *It is shared, not second*, *The
+  kit stands alone*; §5.5 I-2, I-3, I-5; §9 *Shared test support* and *Kit
+  tier*.
+- `docs/slices/012/review-plan.md` F-28 (why the scanner must return enough
+  for PHASE-08 to locate fenced lines).
+- `docs/specs/001-host-backend-protocol.md` §4 whole, §5, §6.1, §6.2, §6.4;
+  `docs/specs/003-host-event-ingress.md` R-1 (the `[ingress]` path, for
+  running.md's config, pointing at events.md); `docs/specs/004-process-exit-status.md`
+  R-3, R-4 (what a person sees when `goad config.toml` cannot start).
+- Code: `crates/goad-shell/tests/integration/round_trip.rs`
+  `fenced_block`, `the_readme_s_own_config_loads_and_runs_the_example`;
+  `crates/goad-shell/tests/integration/main.rs` (the `#[path]` and
+  `#[cfg(test)]` convention); `crates/goad-check/tests/kit/main.rs` and
+  `examples.rs` (`examples`, `copy_tree`); the doors in item 2.
+- `docs/memory/`: `shared-test-helper-lives-at-workspace-root-via-path`,
+  `cargo-test-cwd-is-package-root-not-workspace-root`,
+  `negative-control-must-compile`, `a-green-test-can-assert-a-proxy`,
+  `a-substring-scan-and-a-word-boundary-scan-are-different-instruments`,
+  `autotests-false-hides-an-undeclared-test-target`. The user's memory adds
+  *a standing guard may not reach a new file*, *tests asserting proxies*,
+  *mutation-check the coverage claim*.
+
+**Assumptions — verified now** (at b09a61f, by reading and the runs named)
+- **A-V1 — what `fenced_block` does, and who calls it** (item 1). It
+  searches for the literal `"```toml\n"` (`format!("```{language}\n")`), so
+  it finds only a backtick fence whose info string is exactly the language
+  word, at any position (not only at a line start); the body runs from after
+  that opener to the next `"```"` anywhere, and it panics on *"no ```toml
+  block in the document"* or *"an unterminated fence"*. It ignores tilde
+  fences, indentation and closing-fence length. Its **one** caller is
+  `the_readme_s_own_config_loads_and_runs_the_example`, over
+  `include_str!("../../../../exercisers/typescript/README.md")`, whose only
+  fence is one backtick ```` ```toml ```` block (`command grep -n '```'
+  exercisers/typescript/README.md` → an opener and a closer). No canon,
+  policy, ADR or memory cites `fenced_block` or the case
+  (`command grep -rn` over `docs/{specs,policy,adr,memory}`: none). So "no
+  loss" means: the shared scanner yields that block, its body is the same
+  bytes (everything from the line after the opener up to the start of the
+  closer, trailing newline included), and a README with no `toml` fence
+  still fails loudly.
+- **A-V2 — the doors, and their reach from `goad-check`'s test targets**
+  (item 2). Every one is `pub` and lives in a crate `goad-check` already
+  depends on (`[dependencies]` `goad-semantics`, `goad-shell`, `jiff`;
+  `[dev-dependencies]` `serde_json`). A test target sees a package's
+  ordinary dependencies, so **no manifest changes**.
+
+  | role | door (signature) | then |
+  |---|---|---|
+  | `goad:response` | `goad_semantics::protocol::normalize::read_response(bytes: &[u8], now: Timestamp) -> Result<Normalized<Response>, ProtocolError>` | `Normalized { pub value, pub discarded: Vec<Discarded> }`; `ProtocolError::requirement(&self) -> Requirement`; `Discarded::Schedule { raw, reason: ScheduleError }` is the only variant (an irrefutable `let`), `ScheduleError::requirement` |
+  | `goad:request` (evaluate) | `canonical::Request::Evaluate(Evaluate { now: Timestamp, event: Event })`, `Event { source, kind, timestamp, data }` all `pub`; `impl Serialize for Request`, so `serde_json::to_value(&request)` | `Timestamp::new(raw.parse::<jiff::Timestamp>()?)` — the parse stratum 1 uses (`schedule.rs`), needing no jiff feature |
+  | `goad:request` (respond) | `Request::Respond(Respond { view_id: ViewId, now, response: UserResponse { option: OptionId, values: BTreeMap<FieldId, Value> } })`; `ViewId::new` is `pub`; `OptionId::new` and `FieldId::new` are `pub(super)`, so both are **cloned from the normalized view** (`Response::view`, `View::Choice` — one variant, `Choice::options().as_slice()`, `Opt::id`, `Opt::fields().as_slice()`, `Field::id`, `Field::kind`) — which is what the table asks anyway | the oracle: `Submitted::as_drawn(kind: &FieldKind) -> Submitted`, `Submitted::to_json(&self) -> Value`; for `choice`, `FieldKind::Choice { alternatives }`, `Alternatives::as_slice`, `Alternative::id().as_str()` |
+  | `goad:envelope` | `goad_shell::ingress::envelope::normalize(bytes: &[u8]) -> Result<Event, EnvelopeFault>` | — |
+  | `goad:config` | `goad_shell::config::Config::parse(text: &str) -> Result<Config, ConfigError>` | — |
+
+  `Requirement` displays as `R-44` (`impl fmt::Display for Requirement`), so
+  a role's `R-N` word is compared with `requirement().to_string()`: no id
+  is spelled in test code. `FieldKind` appears nowhere in
+  `crates/goad-check` today (`command grep -rn FieldKind crates/goad-check`
+  → nothing): the oracle's `Choice` pattern will be its first hit (VA-6).
+- **A-V3 — a request fence must spell instants as the host does.**
+  `Timestamp`'s `Serialize` is jiff's `Display`: UTC with `Z`, no fraction
+  when there is none (`2026-08-23T04:12:00Z`, SPEC-001 §6.1's form). A
+  `goad:request` block whose `now` or `event.timestamp` is written with
+  `+10:00` parses, re-serializes as `…Z`, and fails the framing compare. So
+  the reference's request fences use the `Z` form; its prose must still say
+  a backend MAY receive any offset (SPEC-001 §6.1: *"RFC 3339 with an
+  explicit offset"*) — VA-3 reads for this.
+- **A-V4 — every json/toml fence already under `kit/` passes the convention
+  as written** (item 3). `command grep -rnE '^\s*(```|~~~)' kit` minus bare
+  closers: four `sh` fences (unchecked) and five checked ones —
+  `toml goad:config` in each of the three READMEs and `json goad:envelope`
+  in `downloads-triage` and `breadcrumbs`. No tilde fence, no indented
+  fence, no `jsonc`/`JSON`. PHASE-06 X-13 recorded each config block equal to
+  its `config.toml` and each envelope block byte-equal to its event file
+  (`}}\n`-terminated, checked here with `od -c`), and `goad-check` accepted
+  both: `Config::load` → `Config::parse`, and `--event` → `envelope::normalize`
+  (`main.rs`'s `normalized`). `SKILL.md` has no fence. So **no README edit is
+  expected**; a README fence that fails VT-1 is a finding, not a silent
+  re-tag (STOP conditions).
+- **A-V5 — I-5 over today's `kit/`** (item 4). `git ls-files` at the
+  repository root lists 547 paths, 16 under `kit/`; run from
+  `crates/goad-check` (cargo's test cwd) it would list only that package's
+  paths — the wrong root, which VT-5's "nothing under `kit/` or `crates/`"
+  refusal exists to catch. A scratch implementation of both halves
+  (`/tmp/claude-1000/-home-david-dev-goad/d1f8b237-7c10-46f1-b88b-830cd437a3f6/scratchpad/i5/check.py`,
+  run with `python3 -I`; not durable) over every regular file under `kit/`:
+  **no escaping `../`, no mention of a tracked prefix** — zero hits. Top-level
+  tracked names: `.agents AGENTS.md assets Cargo.lock Cargo.toml CLAUDE.md
+  .claude-plugin clippy.toml crates docs exercisers flake.lock flake.nix
+  .gitignore justfile kit LICENSE nix README.md rustfmt.toml scratchpad
+  tests`. `git` is in the devshell (`devToolPkgs`, `flake.nix`).
+- **A-V6 — the forwarded socket item is live in this checkout.** A
+  filesystem walk of `kit/` today finds **18 regular files and 2 sockets**:
+  `downloads-triage/goad.sock` and `breadcrumbs/goad.sock` (`srw-------`,
+  left by VH-2/VH-3), plus each one's `goad.sock.lock` (regular, empty,
+  ignored by `.gitignore`). `fs::read` on a socket fails (ENXIO, PHASE-06
+  A-V6). So VT-5's walk must skip sockets by type, as `copy_tree` does
+  (D-4); VT-1's walk filters on `.md` and never opens one. The lock files
+  are read by VT-5 and are empty.
+- **A-V7 — the reportable ids, and the line between the files** (item 5).
+  Every id a refusal can name is one of the `Requirement` constants a
+  `requirement()` arm returns (`goad-semantics` `ProtocolError`,
+  `BoundsError`, `ScheduleError`; `goad-shell` `BackendError`,
+  `CleanupFailure`, `StateError`), plus the checker's `Requirement::R56`.
+  `ConfigError` and `EnvelopeFault` name none (they are status 2). By the
+  design's tree:
+
+  | file | ids it must hold, each in a heading of its own |
+  |---|---|
+  | `protocol.md` (this phase) | `SPEC-001/R-3`, `R-10`, `R-12`, `R-13`, `R-14`, `R-16`, `R-17`, `R-18`, `R-32`, `R-44`, `R-50`, `R-52`, `R-53`, `R-56` |
+  | `running.md` (this phase) | `SPEC-001/R-40`, `R-41`, `R-43`, `R-45`, `R-48` |
+  | `scheduling.md` (PHASE-08) | `SPEC-001/R-21`, `R-22`, `R-23`, `R-25` |
+
+  So PHASE-08's coverage test, written red, should be red on the four
+  scheduling ids only (task 7 records the list it will see). R-44's two
+  homes are D-8. This table is the sheet's reading of the tree, held for
+  this phase by task 7's grep, and for good by PHASE-08's VT-1 — not a list
+  any test reads.
+- **A-V8 — the standing instruments and the new files** (item 6).
+  - *clippy* (`--workspace --all-targets -D warnings`): reaches
+    `tests/support/fences.rs` **through each includer** — it is compiled
+    once per including target — and the new `tests/kit/*.rs` once declared
+    in `main.rs`. Reach proofs R-7, R-8.
+  - *fmt* (`cargo fmt --all --check`): reaches a `#[path]`-included support
+    file through every includer. **Measured now**: `tests/support/scripting.rs`
+    misindented by one line (copied to the scratchpad and back; `git status`
+    clean after) gave four `Diff in …/tests/support/scripting.rs:23`
+    lines, one per includer (`goad` `event_loop_schedule` and `renderer`,
+    `goad-check` `binary`, `goad-shell` `integration`). R-9 repeats it for
+    the new file.
+  - *deno check*: no new TypeScript; a `ts` fence in a reference file is not
+    read by it. Not reached, and nothing should be. No reach proof.
+  - *The vocabulary scan* (`goad-boundary` `domain_scan`): workspace members
+    only, `extensions: &["rs", "slint"]`, `excluded_dirs: &["tests",
+    "target"]` — reaches neither `tests/support/` (not a member),
+    `crates/*/tests/`, nor `kit/`. By design (PHASE-06 A-V7). No reach proof.
+  - *VT-1 and VT-5 over the new Markdown*: VA-2 and R-2 (fence), R-5 (I-5).
+  - *No instrument* reads prose for truth against SPEC-001: VA-3 is the
+    reading that covers it.
+- **A-V9 — no person-runs** (item 7). PHASE-07's Verification has no VH
+  criterion, so there are no hand-over blocks. (Had there been: nushell,
+  with each status-printing call under `do -i { … }` or read from
+  `complete`, per PHASE-06's VH-1 finding.)
+
+**Assumptions — first tested by this phase**
+- **A-T1 — the shared file compiles warning-free in both includers** with
+  every symbol used by both (EX-4). Red if `round_trip.rs` reads a field the
+  kit does not, or the reverse. R-7 proves clippy sees both.
+- **A-T2 — `git ls-files` runs inside every environment the gate runs in.**
+  The devshell has `git`; a linked worktree's `.git` is a file naming the
+  common directory, which `git` follows. A jail that mounts a linked worktree
+  without its common directory fails VT-5 — by design (it never skips), but
+  it would be news. Record where the gate was run.
+- **A-T3 — the reference can state every rule it cites at a heading of its
+  own and still read as organised by task** (EX-3; D-7).
+- **A-T4 — PHASE-08 can find fenced lines from `Fence::body`** without a new
+  symbol (F-28): removing each `body` range before reading headings. This
+  phase's VT-2/VT-3 inline strings exercise the range; PHASE-08's VT-2 is
+  the test of it.
+
+**STOP conditions** (consult the user; do not improvise)
+- A file outside **Surfaces**, including any `Cargo.toml` and any
+  `tests/support/` file but `fences.rs`.
+- A dependency of any kind (a crate, a `[dev-dependencies]` entry, a
+  Markdown parser, a nixpkgs package).
+- A symbol in `tests/support/fences.rs` that one includer does not use, or
+  an `#[expect(dead_code)]`/`#[allow]` to quiet one
+  (`shared-test-helper-lives-at-workspace-root-via-path`).
+- A fence already in the kit that fails VT-1: record it under **Findings**
+  and ask; do not re-tag or rewrite it to pass.
+- A rule of SPEC-001 the reference cannot state without teaching something
+  host-internal, or one where the spec and the code disagree.
+- A role check that cannot be written through its door without a reader of
+  `Submitted` or a kind→JSON-type mapping (I-2).
+- VT-5 finding a real breach in a file this phase does not own (an example
+  script, a manifest): a finding, not an edit.
+- Any PLAN QUESTION unresolved when a task it blocks is reached.
+- A `path:` flake reference; any lock-changing nix command.
+- `git stash`, `git checkout`, `git reset`, `git rebase`, `--amend`, or any
+  history rewrite. Mutations and plants are copied to the scratchpad and
+  copied back. Commit with `git commit -m … -- <paths>`, then `git show
+  --stat HEAD`: only your paths.
+- Another writer in this worktree.
+
+**Decisions applied by this sheet** (inside the design's latitude; the
+executor may overturn one only by recording why under **Decisions taken
+during execution**)
+- **D-1 — the scanner's surface.** `tests/support/fences.rs` holds, and only
+  holds: `pub(crate) struct Fence<'a> { pub(crate) info: &'a str,
+  pub(crate) body: Range<usize> }` and `pub(crate) fn fences(markdown: &str)
+  -> Vec<Fence<'_>>`, in document order. `info` is the info string, trimmed
+  (words by `split_whitespace` at the use). `body` is the byte range of the
+  content lines in `markdown` — from the line after the opener to the start
+  of the closer — so both includers read it as `&markdown[fence.body.clone()]`
+  and both use both fields; PHASE-08 removes the ranges before reading
+  headings (A-T4, F-28); a line number for a message is
+  `markdown[..fence.body.start].lines().count()`. No other symbol. Why a
+  range, not a `&str`: PHASE-08 must locate the text, and recovering an
+  offset from a `&str` takes a pointer `as` cast (`as_conversions` is
+  denied) or a `find` that is wrong on a repeated body.
+- **D-2 — what the scanner recognises** (EX-1, *"a CommonMark fence
+  scanner for backtick and tilde fences, info string split on
+  whitespace"*). An opener is a line with at most three spaces of
+  indentation, then three or more of one fence character (`` ` `` or `~`),
+  then the info string; a backtick opener whose info string contains a
+  backtick is not a fence. The closer is the first later line with at most
+  three spaces of indentation and at least as many of the **same** character,
+  followed only by whitespace. Lines indented four or more are not openers
+  (indented code blocks are not seen: I-3). An opener with no closer
+  **panics**, naming the opener's line — CommonMark would run it to the end
+  of the document, which would let an unclosed `sh` fence swallow a `json`
+  fence after it and shrink the checked set unseen; both includers want a
+  loud failure (`fenced_block` panicked too). Content lines are not
+  de-indented: no kit fence is indented (A-V4).
+- **D-3 — the fence gate's refusals are a closed enum** in `tagged.rs` (for
+  example `Untagged`, `Misspelt` for a first word that begins `json`/`toml`
+  but is not exactly one, `UnknownRole`, `WrongLanguage` for a json role on a
+  `toml` fence or the reverse, and one per door's refusal), each carrying the
+  file and line. VT-1 collects every refusal over every file, then fails
+  once naming all of them, and prints the checked count. Each negative
+  control asserts the **variant**, and its inline fence body is a valid
+  document of the role, so the variant under test is the only fault it can
+  have; each also holds a **positive twin** (the same body correctly tagged,
+  accepted) — *tests asserting proxies*.
+- **D-4 — the walks.** `tree.rs` holds the kit root
+  (`CARGO_MANIFEST_DIR/../../kit`) and one recursive walk of regular files,
+  sorted, skipping a unix socket by type with the comment citing A-V6 and
+  panicking on anything else (a symlink), as `copy_tree` does. VT-1 takes the
+  `*.md` among them; VT-5 takes all of them. Each refuses an empty set.
+  Files are read as UTF-8 and a file that is not fails, naming it: the kit
+  ships text.
+- **D-5 — VT-1 also refuses a zero checked-fence count** (a narrowing: EX-1's
+  *"refusing an empty set"* is read as both the file set and the set of
+  checked fences). Without it, a scanner that yields nothing passes VT-1 over
+  any number of files. The count is printed for VA-1; no test asserts a
+  number (*never count*).
+- **D-6 — `round_trip.rs`'s use.** `the_readme_s_own_config_loads_and_runs_the_example`
+  takes the first fence whose first info word is `toml` and reads its
+  `body`; its panic text names the README when there is none. Today's rule
+  matched only an info string of exactly `toml`; the exerciser README's is
+  exactly that (A-V1), so the case reads the same block.
+- **D-7 — EX-3's anchor rule, read strictly.** Every rule `protocol.md` or
+  `running.md` **states** sits under an ATX heading line (`#`…) that names
+  its id in the report's form (`SPEC-001/R-13`) and **no other id** — h2 for
+  the task, h3 per rule, for example `### SPEC-001/R-13 — a choice offers at
+  least one option`. An id mentioned in passing to point at a rule stated
+  elsewhere is a cross-reference in body text, not a statement. Setext
+  headings are not used (PHASE-08's VT-1 reads `#` lines). Each reportable id
+  of A-V7 has **exactly one** heading across the reference.
+- **D-8 — R-44 has one home, `protocol.md`.** R-44 is answered by `Json`,
+  `Shape`, `DuplicateKey` (backend) and `BackendError::Spawn`
+  (configuration). Its heading sits in `protocol.md` (stdout must be one
+  well-formed document of a shape this file describes), and its section
+  says in one line that an unspawnable command is reported under the same id
+  on the configuration side, linking `running.md`'s command section, which
+  cross-references it in body text. One anchor per id (F-32).
+- **D-9 — every json role is exercised by real kit content after this
+  phase.** `protocol.md` carries at least one fence of each: `goad:response`
+  accepted, `goad:response refused R-N`, `goad:request` evaluate,
+  `goad:request` respond (after its view-carrying response), and — if it fits
+  the file's task, citing `SPEC-001/R-25` in body text as a cross-reference to
+  `scheduling.md` — `goad:response discarded R-25`. `running.md` carries a
+  `toml goad:config`. `goad:envelope` is already exercised by two READMEs.
+  VA-1's count is tabulated by role.
+- **D-10 — VT-2 and VT-3's inline strings** (specifying the plan's names).
+  VT-2: an untagged backtick ```` ```json ```` fence and an untagged tilde
+  `~~~json` fence, each refused `Untagged`. VT-3: `jsonc`, `json5` and
+  `JSON goad:response`, each refused `Misspelt` — VT-3 is read as F-24's
+  rule, of which `jsonc` is the named instance. Without the tilde and
+  upper-case cases, M-2 and M-3 below are held by nothing.
+
+**Tasks** — order matters: the scanner first, red, then its second includer,
+then the gate, then the prose the gate reads. Red first for every test.
+
+- [ ] Set PHASE-07 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline` (this sheet's commit, or a descendant
+      whose only changes resolve its PLAN QUESTIONs) and `git status
+      --short` (clean but for the two ignored socket pairs, which `git
+      status` does not list).
+- [ ] Every PLAN QUESTION resolved, and any amended criterion re-quoted
+      here before the task it blocks.
+- **1. The shared scanner (EX-1's scanner, EX-4)**
+  - [ ] `crates/goad-check/tests/kit/main.rs`: `#[cfg(test)] #[path =
+        "../../../../tests/support/fences.rs"] mod fences;`, and `#[cfg(test)]
+        mod tagged;`. Its comment *"Nothing here is `#[path]`-included"*
+        becomes true again: the scanner is included, and why (shared with
+        `goad-shell`'s `integration` target, every symbol used by both).
+  - [ ] **Red**: in `tagged.rs`, the scanner's own cases over inline strings
+        (unnamed in §9, so private helpers' asserts inside VT-2/VT-3, not new
+        `#[test]`s — *test names are commitments*): write VT-2 and VT-3
+        (D-10) against a `fences.rs` holding only D-1's signatures with an
+        empty body (`Vec::new()`). Both compile and red. Record both failure
+        texts.
+  - [ ] `tests/support/fences.rs`: D-1, D-2. Module doc: what it is, the two
+        includers, the every-symbol rule and the memory it cites, and that it
+        replaced `round_trip.rs`' `fenced_block`.
+- **2. The second includer (EX-4, VT-7)**
+  - [ ] `crates/goad-shell/tests/integration/main.rs`: `#[cfg(test)] #[path =
+        "../../../../tests/support/fences.rs"] mod fences;` beside the two
+        existing `#[path]` declarations, with a one-line comment in their
+        style.
+  - [ ] `round_trip.rs`: `fenced_block` deleted; the case per D-6. VT-7
+        (quoted): *"`round_trip.rs`' `the_readme_s_own_config_loads_and_runs_the_example`
+        is green, reading the README's config through the shared scanner."*
+        `nix develop --command cargo test -p goad-shell --test integration
+        the_readme_s_own_config -- --nocapture`; record the result line.
+  - [ ] `nix develop --command cargo clippy -p goad-shell -p goad-check
+        --all-targets -- -D warnings`: clean (A-T1).
+- **3. The fence gate (EX-1, EX-2; VT-1..VT-4)** — `tagged.rs`
+  - [ ] EX-1 (quoted): *"a block whose first info word, lowercased, begins
+        `json` or `toml` fails unless that word is exactly `json` or `toml`
+        with a known `goad:` role. VT-1 reads every `*.md` under `kit/`,
+        enumerated and not listed, refusing an empty set."* Roles, exactly
+        the design's table, by word count: `json goad:response`; `json
+        goad:response refused R-N`; `json goad:response discarded R-N`;
+        `json goad:request`; `json goad:envelope`; `toml goad:config`.
+        Anything else after `json`/`toml` is `UnknownRole` (D-3). Fences in
+        other languages, and with no info string, are not checked.
+  - [ ] EX-2 (quoted): *"responses through `read_response` (accepted,
+        refused by id, discarded by id); evaluate requests by framing;
+        respond requests by framing, R-58's field set and the JSON-type
+        oracle over `Submitted::as_drawn`; envelopes through
+        `envelope::normalize`; configs through `Config::parse`."* Concretely,
+        per the design's table and A-V2:
+        - `goad:response` — `Ok` with an empty `discarded`. `refused R-N` —
+          `Err(e)`, `e.requirement().to_string() == "R-N"`. `discarded R-N` —
+          `Ok` with exactly one discard whose `reason.requirement()` displays
+          `R-N`. One fixed `now` for every response fence, named as a
+          constant with a comment (relative `next_check`s resolve against it).
+        - `goad:request` with `"type": "evaluate"` — build `Request::Evaluate`
+          from the block's `now` and `event` (each instant parsed per A-V2),
+          `serde_json::to_value`, compare with the block as a `Value`: equal.
+          `source` and `kind` are the block's own (F-21); A-V3's spelling.
+        - `goad:request` with `"type": "respond"` — the view is the **nearest
+          preceding** `goad:response` fence in the same file whose `read_response`
+          is `Ok` with `Some` view; none is a refusal. The block's
+          `response.option` must be one of that view's option ids (cloned
+          `OptionId`); the block's `response.values` keys must be **exactly**
+          that option's field ids (R-58); each value's JSON type
+          (`std::mem::discriminant` over `serde_json::Value`) equals that of
+          `Submitted::as_drawn(field.kind()).to_json()`; a `choice` field's
+          value is a string among its alternatives' ids (the one
+          `FieldKind::Choice { alternatives }` pattern — VA-6). Then build
+          `Request::Respond` (`ViewId::new` of the block's `view_id`, the
+          parsed `now`, the cloned ids, the block's values verbatim),
+          serialize and compare: framing equal. Plan Note (quoted): *"The
+          respond oracle writes no reader of `Submitted` (U5); I-2 binds
+          tests too."* — no `match` on `Submitted`, no kind→type table.
+        - `goad:envelope` — `envelope::normalize(body.as_bytes())` is `Ok`.
+        - `goad:config` — `Config::parse(body)` is `Ok`.
+  - [ ] **Red**: VT-1 (quoted): *"`every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`."*
+        Written before any role check exists (every json/toml fence refused
+        `UnknownRole`, or the checks stubbed to refuse): it reds over the
+        five README fences. Record the text. Then green over today's kit, and
+        record the printed count (5, by role: 3 config, 2 envelope).
+  - [ ] VT-2 (quoted): *"`an_untagged_json_fence_is_refused`, over an
+        inline string."* — D-10. VT-3 (quoted): *"`a_jsonc_fence_is_refused`,
+        over an inline string."* — D-10.
+  - [ ] **Red, then green**: VT-4 (quoted):
+        *"`a_respond_fence_with_a_value_of_the_wrong_json_type_is_refused`."*
+        An inline document: a `goad:response` fence with a view whose option
+        draws a `boolean` field, then a `goad:request` respond fence answering
+        it with `"yes"` — refused, the oracle's type variant; its positive
+        twin answers `false` and is accepted. Red first against an oracle that
+        accepts every value.
+  - [!] PLAN QUESTION 1: the role checks' other refusals (below) — the named
+        negative controls it recommends, if endorsed.
+  - [ ] Green: `nix develop --command cargo test -p goad-check --test kit
+        --no-fail-fast`. Record the `test result` line.
+- **4. I-5 (EX-5; VT-5, VT-6)** — `standalone.rs`
+  - [ ] EX-5 (quoted): *"I-5 holds by §5.2.6's rule, *The kit stands
+        alone*."* The tracked list: `git ls-files` with `current_dir` the
+        repository root (`CARGO_MANIFEST_DIR/../..`), not the test's cwd
+        (A-V5); a spawn failure or a non-zero status **fails** naming it,
+        never skips; the list is refused unless it holds a path under `kit/`
+        and one under `crates/`. Kept: paths not under `kit/`.
+        - *Escaping*: in each file, every whitespace-delimited token (with
+          surrounding quotes, backticks, brackets and parentheses trimmed —
+          record the exact set) that contains `../` is resolved lexically
+          from the file's directory, relative to the repository root, by a
+          component stack; refused if the result is not under `kit/`
+          (including a result above the root).
+        - *Mention*: every `<name>/<segment>`, both runs of
+          `[A-Za-z0-9._-]`, where the character before `<name>` is not one
+          of `[A-Za-z0-9._/-]` (or is the start of the text), and
+          `<name>/<segment>` is a tracked path outside `kit/` or the start of
+          one followed by `/` — a whole component, so `crates/goad-s` is not
+          `crates/goad-shell`.
+  - [ ] **Red**: VT-6 (quoted): *"`a_path_outside_the_kit_is_refused`, over
+        inline strings against the tracked list VT-5 reads: an escaping
+        relative path, and a mention of a tracked path outside `kit/`
+        (`crates/goad-shell/src`), each refused; a consumer path that names
+        nothing here (`.claude/skills/`) and a backticked
+        `` `.claude-plugin/plugin.json` ``, each accepted."* Red against a
+        checker that refuses nothing; record. The inline strings are checked
+        as though they sat in `kit/skills/goad-backend/reference/` (record
+        the notional path).
+  - [!] PLAN QUESTION 1's two further accepted cases for VT-6, if endorsed.
+  - [ ] VT-5 (quoted): *"`nothing_in_the_kit_names_a_path_outside_it` (I-5):
+        every file under `kit/`, enumerated, refusing an empty set; the
+        tracked paths read at test time by `git ls-files` at the repository
+        root, refusing a list with nothing under `kit/` or under `crates/`. A
+        missing `git` or `.git` fails the test; it never skips."* Every breach
+        over every file is collected, then one failure names each (file,
+        line, the text, which half). Green over today's kit (A-V5), with the
+        two sockets present (A-V6) — record that they were.
+- **5. The reference (EX-3)** — `kit/skills/goad-backend/reference/`
+  - [ ] EX-3 (quoted): *"`protocol.md` and `running.md` state only what an
+        author must do or may rely on, organised by task, each rule citing
+        its id as a report prints it (`SPEC-001/R-13`), each id in a heading
+        line of its own — the anchor PHASE-08's coverage test reads."* D-7,
+        D-8. Plan Note (quoted): *"Fragments are shown whole or as `text`
+        (§5.2.6)."* Every `json`/`toml` fence is tagged with a role (VT-1
+        reads it the moment the file exists).
+  - [ ] `protocol.md` — tasks such as *answer a request*, *show a view*,
+        *ask for values*, *what the host sends back*, *when an answer is
+        refused*; holds A-V7's `protocol.md` row, plus the other SPEC-001
+        rules an author needs from §Envelope and versioning, §Requests,
+        §Responses: views and §Interaction identity (R-1, R-2, R-4/R-5, R-51,
+        R-6..R-9, R-56, R-57, R-58, R-11, R-15, R-19, R-20, R-30, R-31,
+        R-33..R-35 — the executor's to select by what an author must do or
+        may rely on, recorded). Host-internal rules — bounds, cleanup,
+        renderer subsets (R-55) — at most one line each saying what the
+        author observes. A-V3's offset rule in prose. D-9's fences. No path
+        outside the kit, no link to `docs/specs/`.
+  - [ ] `running.md` — tasks such as *name your command*, *read a request,
+        write one response*, *use stderr*, *finish in time*, *exit*, *write
+        the config file*; holds A-V7's `running.md` row, plus R-36..R-39,
+        R-42, R-49, R-54 as the executor selects, the `[backend]`,
+        `[schedule]` and `[ingress]` keys as `Config::parse` reads them (a
+        `toml goad:config` fence; `[ingress]` pointing at `events.md`), the
+        relative-`command` rule (§5.2.6, *How a config names its backend*),
+        and, in one line each, what a person sees when `goad config.toml`
+        cannot start (SPEC-004 R-3, R-4) — no bound or cleanup-limit value.
+  - [ ] `nix develop --command cargo test -p goad-check --test kit
+        --no-fail-fast`: VT-1 and VT-5 green over the two new files; record
+        the new checked count by role (VA-1).
+- **6. Refactor**
+  - [ ] `examples.rs`'s `examples` and `copy_tree` use `tree.rs`'s root and
+        walk where that removes code (the copy is "for each walked file,
+        create its parent and copy it"); record what changed, or why nothing
+        did. Nothing in `tagged.rs` or `standalone.rs` names a kit file.
+  - [ ] Every symbol in `tests/support/fences.rs` used by both includers
+        (clippy, R-7); `fences.rs` holds the scanner and nothing else.
+- **7. Evidence**
+  - [ ] VA-1 (quoted): *"the extractor's count of checked fences is non-zero
+        and equals a count taken by hand over the kit, recorded."* By hand:
+        `command grep -rnE '^ {0,3}(```|~~~)\s*(json|toml)' -i kit` (each hit
+        read), tabulated by role, against VT-1's printed count.
+  - [ ] VA-2 (quoted): *"mutation: one fence in `protocol.md` untagged reds
+        VT-1. Recorded."* — row M-1.
+  - [ ] VA-3 (quoted): *"`protocol.md` and `running.md` read against
+        SPEC-001 §4 and §6: nothing contradicts it, and nothing host-internal
+        is taught. Recorded."* One block per file under **Findings**: each
+        heading's id against its §4 row; A-V3's offset; R-30 (a backend sends
+        no `view_id`); R-58's *"MUST NOT send the field"* direction; the
+        D-8 line. The PHASE-06 VH-1 report-reading observations are **not**
+        this phase's (they are `checking.md`'s, PHASE-08): at close, add one
+        §Open row pointing PHASE-08 at them (**Findings**).
+  - [ ] VA-4 (quoted): *"`notes.md` §Open's FU-5 row names the shared
+        scanner's file and symbol, and says it replaced `round_trip.rs`'
+        `fenced_block` rather than copying it."* Append to the existing
+        *FU-5's citation extends …* bullet: **PHASE-07**: `fences` and
+        `Fence` in `tests/support/fences.rs`, included by `goad-check`'s
+        `kit` and `goad-shell`'s `integration` targets, replacing
+        `round_trip.rs`' `fenced_block`; nothing copied — or name each copy.
+  - [ ] VA-5 (quoted): *"reach: a relative path escaping `kit/`, planted in
+        an example README, reds VT-5; restored. Recorded."* — row R-4.
+  - [ ] VA-6 (quoted): *"I-2 over `crates/goad-check`'s tests as this phase
+        leaves them (the respond oracle), by the command under *Invariant
+        reads*. Recorded."* `command grep -rn 'FieldKind' crates/goad-check`;
+        each hit read for a kind mapped to a JSON type or a value. Expected:
+        the oracle's `FieldKind::Choice { alternatives }` pattern (it reads
+        alternatives, maps no kind to a type) and its `use`.
+  - [ ] A-V7's line held: `command grep -nE '^#+ .*SPEC-001/R-[0-9]+'
+        kit/skills/goad-backend/reference/*.md` — each heading names one id;
+        every id of the `protocol.md` and `running.md` rows appears exactly
+        once; the scheduling four do not. Record the list PHASE-08's VT-1
+        will find missing (expected: R-21, R-22, R-23, R-25).
+  - [ ] Mutation and reach rows (below), each recorded.
+  - [ ] `nix develop --command just check` exit 0. Record the summed
+        passed count: the entry count (740) plus this phase's new cases.
+- **8. Close**
+  - [ ] §Harvest updated (Produced, Learned, Open); PHASE-07 `done`.
+  - [ ] Commit the surfaces and this sheet's records with `git commit -m
+        "012 PHASE-07: …" -- <paths>`; `git show --stat HEAD` lists only
+        them.
+
+**Exit criteria** (quoted in the tasks above; listed here to be ticked)
+- [ ] EX-1
+- [ ] EX-2
+- [ ] EX-3
+- [ ] EX-4
+- [ ] EX-5
+- [ ] VT-1
+- [ ] VT-2
+- [ ] VT-3
+- [ ] VT-4
+- [ ] VT-5
+- [ ] VT-6
+- [ ] VT-7
+- [ ] VA-1
+- [ ] VA-2
+- [ ] VA-3
+- [ ] VA-4
+- [ ] VA-5
+- [ ] VA-6
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad, edit, run with `--no-fail-fast`, copy back; `git status --short`
+clean after each restore). A Markdown mutation has no build: its row records
+that the mutated file was the one the test read (the failure names it).
+Instrument, unless the row says otherwise: `nix develop --command cargo test
+-p goad-check --test kit --no-fail-fast`.
+
+| row | file / symbol | edit | must red | must stay green | compiled? / file read | redded | restored |
+|---|---|---|---|---|---|---|---|
+| M-1 (VA-2) | `reference/protocol.md`, one `json goad:…` fence | its `goad:` word removed | VT-1, naming `protocol.md` and the line, `Untagged` | VT-2..VT-6 | | | |
+| M-2 | `fences.rs` `fences` | only `` ` `` recognised as a fence character | VT-2 (its tilde case) | VT-1 over today's kit (no tilde fence) | | | |
+| M-3 | `tagged.rs`, the json/toml test | the first word compared without lowercasing | VT-3 (`JSON goad:response`) | VT-1 | | | |
+| M-4 | `tagged.rs`, the respond oracle | the JSON-type comparison always true | VT-4 | VT-1 | | | |
+| M-5 | `standalone.rs`, the escaping half | it refuses nothing | VT-6 (its escaping case) | VT-5 | | | |
+| M-6 | `standalone.rs`, the mention half | it refuses nothing | VT-6 (`crates/goad-shell/src`) | VT-5 | | | |
+| M-7 | `standalone.rs`, the `git ls-files` spawn | `current_dir` removed (cwd = `crates/goad-check`) | VT-5 and VT-6, on the wrong-root refusal | VT-1..VT-4 | | | |
+| M-8 | `fences.rs` `fences` | returns `Vec::new()` | VT-1 (D-5's zero count); VT-7 under `cargo test -p goad-shell --test integration the_readme_s_own_config` | — | | | |
+| M-9 | `fences.rs`, the closer | a closer of a **different** character accepted | VT-2's tilde case, or record that nothing reds | — | | | |
+| M-10 (offered) | `tagged.rs`, `refused R-N` | the id comparison dropped | **expected green** unless PLAN QUESTION 1's control lands: record which | — | | | |
+| M-11 (offered) | `standalone.rs`, the preceding-character rule | dropped | **expected green** unless PLAN QUESTION 1's accepted case lands | — | | | |
+| M-12 (offered) | `standalone.rs`, the whole-component rule | `<name>/<segment>` matched as a string prefix | **expected green** unless PLAN QUESTION 1's accepted case lands | — | | | |
+
+**Reach proofs** (the same rules)
+
+| row | instrument | plant | must find | result | restored |
+|---|---|---|---|---|---|
+| R-1 | VT-1's enumeration | a new `kit/skills/goad-backend/planted.md` holding an untagged ```` ```json ```` fence | VT-1 red naming `planted.md` alone | | |
+| R-2 | VT-1 over `running.md` | a `jsonc` fence in `running.md` | VT-1 red naming `running.md`, `Misspelt` | | |
+| R-3 | VT-5 over every file, not only `*.md` | `# see crates/goad-shell/src` in `focus-check/backend.py` | VT-5 red naming `backend.py`, the mention half | | |
+| R-4 (VA-5) | VT-5's escaping half | `../../../../crates/goad-shell/src` in `downloads-triage/README.md` | VT-5 red naming the README, the escaping half | | |
+| R-5 | VT-5 over new Markdown | `crates/goad-shell/src` in `protocol.md` body text | VT-5 red naming `protocol.md` | | |
+| R-6 | the walk's socket skip | none: a read. If no socket is left under `examples/` at run time, bind one in the scratch with `python3 -c` into `breadcrumbs/` and remove it after | VT-1 and VT-5 green with a socket present; `ls -l` shows `s` | | n/a |
+| R-7 | clippy over `fences.rs`, both includers | `pub(crate) fn planted() {}` in `tests/support/fences.rs` | `nix develop --command cargo clippy -p goad-check --all-targets -- -D warnings` **and** the same for `-p goad-shell` (run separately: cargo stops at the first failing crate): each `function planted is never used` | | |
+| R-8 | clippy over the new kit modules | an unused `fn planted() {}` in `tagged.rs` | clippy red naming `tagged.rs` | | |
+| R-9 | fmt over `fences.rs` | one line misindented | `cargo fmt --all --check` prints `Diff in …/tests/support/fences.rs` for each includer (A-V8) | | |
+| R-10 | fmt over the new kit modules | one line of `standalone.rs` misindented | `Diff in …/tests/kit/standalone.rs` | | |
+| R-11 | the cases are built | none: a read | `cargo test --workspace` shows `Running tests/kit/main.rs` with VT-1..VT-6 by name, and `Running tests/integration/main.rs` with VT-7 | | n/a |
+
+The vocabulary scan and `deno check` have no row: neither reaches these
+files, by design (A-V8).
+
+**Decisions taken during execution**
+
+(none yet)
+
+**Findings**
+
+- **PLAN QUESTION 1 — most of the role checks' refusals are held by no
+  negative control.** Blocks only the two `[!]` boxes; everything else
+  proceeds. VT-1 runs every role check over **passing** content, so a check
+  weakened to accept everything stays green; only a negative control holds
+  a refusal. The plan names three (VT-2 untagged, VT-3 `jsonc`, VT-4 a wrong
+  JSON type) and VT-6 for I-5. Held by nothing, as planned: an unknown role;
+  a json role on a `toml` fence; `refused R-N` with the wrong id (M-10);
+  `discarded R-N` with the wrong id or count; an accepted response tagged
+  plain that carries a discard; the evaluate framing; the respond framing; a
+  respond with no preceding view; R-58's field set (a missing or an extra
+  key); a `choice` value outside the alternatives; an envelope or config the
+  door refuses. In I-5: the preceding-character rule (M-11) and the
+  whole-component rule (M-12) — no VT-6 case depends on either.
+  *Recommendation:* add **one** table-driven negative control in
+  `tagged.rs`, e.g. `each_role_refuses_what_its_door_refuses`, one inline row
+  per refusal above, each asserting its D-3 variant beside a positive twin;
+  and add to VT-6's accepted cases `/elsewhere/crates/goad-shell/src` (the
+  preceding-character rule) and `crates/goad-s` (the whole component). The
+  first is a new test name, so it goes in `plan-log.md` and §9's PHASE-07 row
+  (*test names are commitments*); `canon-delta.md` names none of this
+  phase's tests, so it is unaffected. The alternative — leave them to review
+  — is cheaper by one test and leaves M-10..M-12 green, which audit would
+  read as a coverage claim the plan never made.
+- **Observation — I-5's walk reads ignored files under `kit/`.** The design
+  says the tracked list makes I-5 *"a property of the tracked tree"*, but
+  VT-5's file set is a filesystem walk (plan VT-5, *"every file under
+  `kit/`, enumerated"*), so an untracked or ignored file a developer leaves
+  under `kit/` is read, and today that is two empty `goad.sock.lock` files
+  (A-V6). Harmless now. Reading the kit's own file set from `git ls-files
+  kit` instead would match what the flake ships (a git-input fileset) but
+  would not see a new file until it is `git add`ed. Not a question for this
+  phase: D-4 follows the plan's letter. Raised for audit.
+- **Observation — the forward from PHASE-06** (*the socket the host leaves
+  in an example directory*) is discharged by D-4 and R-6, and is live: two
+  sockets are in this checkout now (A-V6).
+- **Observation — the PHASE-06 VH-1 report-reading items** (*a refused
+  exchange prints `view: null · next check …` above its `REFUSED` line*;
+  triage's *no longer in …* stderr under the gate route) are `checking.md`'s
+  and the README's, not this phase's, and untouched here. They sit only in
+  PHASE-06's **Findings**: §Harvest's Open list does not carry them (checked:
+  its only VH-1 row is *VH-1..VH-3 are the person's*). The PHASE-08 sheet
+  should read them from there; the executor adds an Open row at close.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
