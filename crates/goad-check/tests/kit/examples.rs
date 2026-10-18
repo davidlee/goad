@@ -6,11 +6,12 @@
 //! The helpers are example-blind; only the triage case names an example.
 use std::collections::BTreeMap;
 use std::fs;
-use std::os::unix::fs::FileTypeExt;
 use std::path::{Path, PathBuf};
 use std::process::Output;
 
 use serde_json::Value;
+
+use crate::tree;
 
 /// The line `render` writes when no exchange returned a view. A third copy,
 /// after `render::NO_VIEW` and `tests/binary/run.rs`'s.
@@ -38,7 +39,7 @@ impl Handout {
 
 /// Every directory under the examples root, sorted. Enumerated, never listed.
 fn examples() -> Vec<PathBuf> {
-  let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../kit/skills/goad-backend/examples");
+  let root = examples_root();
   let mut found: Vec<PathBuf> = fs::read_dir(&root)
     .unwrap_or_else(|e| panic!("the examples root {} must be readable: {e}", root.display()))
     .map(|entry| entry.expect("a directory entry").path())
@@ -48,25 +49,17 @@ fn examples() -> Vec<PathBuf> {
   found
 }
 
-/// Directories and regular files, recursively. A unix socket is skipped by
-/// type: a host run in an example's directory leaves one there, and opening
-/// it to copy it fails. Anything else (a symlink) is not expected.
+fn examples_root() -> PathBuf {
+  tree::root().join("skills/goad-backend/examples")
+}
+
+/// Every file `tree::files` walks under `from`, at the same place under `to`.
 fn copy_tree(from: &Path, to: &Path) {
-  fs::create_dir_all(to).expect("the copy's directory");
-  for entry in fs::read_dir(from).expect("a directory to copy") {
-    let entry = entry.expect("a directory entry");
-    let (source, target) = (entry.path(), to.join(entry.file_name()));
-    let kind = entry.file_type().expect("a file type");
-    if kind.is_dir() {
-      copy_tree(&source, &target);
-    } else if kind.is_file() {
-      fs::copy(&source, &target).expect("a file to copy");
-    } else if !kind.is_socket() {
-      panic!(
-        "{} is neither a file, a directory nor a socket",
-        source.display()
-      );
-    }
+  for source in tree::files(from) {
+    let target = to.join(source.strip_prefix(from).expect("under the copied tree"));
+    fs::create_dir_all(target.parent().expect("a file has a directory"))
+      .expect("the copy's directory");
+    fs::copy(&source, &target).expect("a file to copy");
   }
 }
 
@@ -177,8 +170,7 @@ fn each_shipped_example_is_accepted_by_the_checker() {
 
 #[test]
 fn downloads_triage_moves_the_file_it_was_asked_about() {
-  let example = Path::new(env!("CARGO_MANIFEST_DIR"))
-    .join("../../kit/skills/goad-backend/examples/downloads-triage");
+  let example = examples_root().join("downloads-triage");
   let handout = handout("triage", &example);
   let event: Value = serde_json::from_str(
     &fs::read_to_string(handout.example().join("events/file-arrived.json"))
