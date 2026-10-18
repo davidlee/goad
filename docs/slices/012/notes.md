@@ -5709,7 +5709,7 @@ tree).
         in each example's directory and sees each example ask its question,
         from **Check now** or with `goad-emit` and the example's event
         file."*
-  - [ ] VH-3 (quoted): *"A-4: a person runs `watch.sh`
+  - [x] VH-3 (quoted): *"A-4: a person runs `watch.sh`
         (with `inotify-tools` from `nix shell nixpkgs#inotify-tools`, since
         the devshell has none) against a running host, drops a file into the
         watched directory, and sees the triage view."*
@@ -5813,7 +5813,7 @@ runs every line it can (VH-1 headless) itself first.
 - [x] VA-5
 - [x] VH-1 (person) — run by the user 2026-10-18; see **Findings** *VH-1, the person's run*
 - [x] VH-2 (person) — run by the user 2026-10-18; see **Findings** *VH-2, the person's run*
-- [ ] VH-3 (person)
+- [x] VH-3 (person) — run by the user 2026-10-18; see **Findings** *VH-3, the person's run*
 
 **Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
 scratchpad, edit, run with `--no-fail-fast`, copy back; `git status --short`
@@ -5932,6 +5932,11 @@ for VT rows: `nix develop --command cargo test -p goad-check --test kit
   /home/me/work* showing the note, with **Thanks** and **Clear** (R-33's
   chain, seen). After it, `git status --short` lists nothing; the triage
   directory's `goad.sock.lock` is listed only by `--ignored`.
+- **VH-3, the person's run** (2026-10-18; the user). The triage host in
+  shell 1; `watch.sh --socket ./goad.sock` under `nix shell
+  nixpkgs#inotify-tools` with the scratch `XDG_*`; a file saved into the
+  scratch downloads from a third shell. The window showed *Where does
+  dropped.txt go?* (A-4 seen).
 - **VA-3 — the examples read against SPEC-001 R-56, R-57, R-58, R-33 and
   their READMEs.** No defect found.
   - *focus-check* (`backend.py`): R-56 — `evaluate` reads `kind` only under
