@@ -6926,6 +6926,679 @@ files, by design (A-V8).
   only in PHASE-06's **Findings**; §Open gained a row for them on 2026-10-18
   (the orchestrator's instruction), for PHASE-08.
 
+### PHASE-08 — the rest of the reference, and its coverage
+
+**Written by a phase-sheet agent, not the executor**, at 3dc8d2b (*012
+PHASE-07: done — mutations, reach proofs, VA-3, harvest*). This sheet is the
+plan's second reading. Where it restates a plan criterion it quotes it; where
+it narrows or specifies one it says so and why. It repairs nothing: what reads
+as wrong in the plan or design is under **Findings** as a PLAN QUESTION, and
+the tasks it blocks are marked `[!]`.
+
+**Objective** (quoted, `plan.md` PHASE-08): *"the reference is complete —
+`scheduling.md`, `events.md`, `checking.md` and the finished `SKILL.md` — and
+the gate holds that every requirement any refusal kind can name, and the R-56
+the checker claims, is explained in it, at an anchor of its own."*
+
+```
+goad-semantics::error                     goad-shell::error
+  ProtocolError  BoundsError  ScheduleError   BackendError  CleanupFailure  StateError
+        │  requirement()                            │  requirement()
+        └──────────────┬────────────────────────────┘
+                       ▼
+tests/kit/coverage.rs   every_<taxonomy>() builders, each beside an exhaustive
+                        `match` naming its variants (no `_` arm)
+                        + Requirement::R56 (the checker's claim)
+                        ─► required = { "SPEC-001/" + id }
+                                         │
+kit/skills/goad-backend/reference/*.md   │   tree::files, `.md`, refusing an empty set
+   │ fences::fences → each Fence::body   │
+   │ removed (fenced lines skipped)      ▼
+   └─► heading_ids: `#` lines naming exactly one id ─► found
+                        VT-1: required ⊆ found, each missing id named with its variants
+                        VT-2: inline control (R-32 found; R-3, R-40, R-36, R-41, R-42 not)
+
+reference/{scheduling.md, events.md, checking.md}   new prose; json/toml fences tagged
+SKILL.md                                            the finished router; marker line gone
+```
+
+The module name `coverage.rs` and the function names `heading_ids` and
+`required` are this sheet's proposal (D-1); the executor may rename one by
+recording why under **Decisions taken during execution**.
+
+**Entry**
+- **EN-1** (quoted): *"PHASE-07 done."* **Discharged 2026-10-18 at 3dc8d2b.**
+  §Status has PHASE-07 `done` (as of 2026-10-18), and every exit box of the
+  PHASE-07 sheet is ticked. `git status --short` empty. `nix develop
+  --command just check` (the bare git form) exited **0**: `cargo build
+  --workspace`; both test tiers, **747 passed, 0 failed**, summed over all 34
+  `test result` lines (PHASE-07's exit count); `cargo test -p
+  goad-semantics`; `deno check exercisers/typescript/backend.ts
+  kit/skills/goad-backend/examples/breadcrumbs/backend.ts`; `cargo clippy
+  --workspace --all-targets -- -D warnings` with no `warning` line in the log;
+  `cargo fmt --all --check`. Log (scratch, not durable; these lines are the
+  record):
+  `/tmp/claude-1000/-home-david-dev-goad/d1f8b237-7c10-46f1-b88b-830cd437a3f6/scratchpad/en1.log`.
+
+**Surfaces — a closed list, copied from `plan.md`. Anything else is a STOP.**
+- (quoted) *"`kit/skills/goad-backend/reference/{scheduling.md, events.md,
+  checking.md}`"* — three new files.
+- (quoted) *"(and `protocol.md`, `running.md` for the statement EX-5 names)"*.
+  A-V5 found the statement already in `protocol.md`'s opening, so the
+  expected edit is **none**; an edit here is only to keep that statement true
+  over the finished reference, and is recorded.
+- (quoted) *"`kit/skills/goad-backend/SKILL.md`"* — its body. The frontmatter
+  (`name`, `description`) is PHASE-05's and is not changed (A-V7).
+- (quoted) *"`crates/goad-check/tests/kit/`"* — one new module (`coverage.rs`,
+  D-1), its declaration and comment in `main.rs`, and `tree.rs` /
+  `examples.rs` for the refactor (task 7) only. `tagged.rs` and
+  `standalone.rs` are not edited.
+- `docs/slices/012/notes.md`: this sheet, §Status, §Harvest. Bookkeeping
+  (`docs/AGENTS.md` §Execute).
+
+Not surfaces, and so a STOP if the work seems to need them: any
+`Cargo.toml` (no dependency is needed: A-V3); `tests/support/` (VT-1 adds no
+symbol to the scanner: A-V4); `crates/*/src/` (except as a scratch mutation,
+restored: row R-9); `crates/goad-check/tests/binary/`; the example
+directories, READMEs included (the triage observation is D-10's); the plugin
+manifests (`kit/.claude-plugin/`, `kit/.codex-plugin/`, both marketplaces —
+EX-4 reads them, nothing edits them); `flake.nix`, `flake.lock`;
+`canon-delta.md` (it names none of this phase's tests: `command grep -n
+'every_requirement\|explained_in\|tests/kit\|reference/'
+docs/slices/012/canon-delta.md` → one hit, Change 3's R-56 row citing
+`examples.rs`, which this phase does not touch); any canon document;
+`design.md`, `plan.md`; `docs/slices/012/walk/` and `~/dev/goad-walk`
+(PHASE-11's and PHASE-09's).
+
+**Reading list** (by symbol; `command grep -n` then `sed -n`, not whole files)
+- `docs/slices/012/plan.md` §PHASE-08 whole; §Sequencing & rationale,
+  *Mutation evidence* and *Invariant reads*; §Owed to audit and close, *Test
+  names are commitments*; §PHASE-11 EX-2 (the fact task 6 records).
+- `docs/slices/012/design.md` §5.2.6 whole (*SKILL.md's job*, *The
+  reference's structure* and its **Coverage test** bullets, the tagged-fence
+  table, *The kit stands alone*, *How a config names its backend*); §5.2.1
+  (forms), §5.2.2 (the request plan, *Answering*, *What is judged*), §5.2.5
+  (the report and the status table), §5.5 I-2, I-3, I-5; §9 *Kit tier*.
+- `docs/slices/012/canon-delta.md` SPEC-001 Change 1 (R-59 as it will be
+  stated: the four sides and the declared imprecision), Change 7 (R-45);
+  SPEC-004 Changes 3 and 4 (R-11..R-15, and `goad-check`'s inference table).
+- `docs/specs/001-host-backend-protocol.md` §4 rows R-21..R-29;
+  `docs/specs/002-host-scheduling-behaviour.md` §4 (what a backend observes:
+  R-1, R-3, R-4's spacing, R-7, R-11); `docs/specs/003-host-event-ingress.md`
+  §4 whole and §6.3 (the reply and its closed reason set); SPEC-004 §4 and §6
+  as they stand.
+- Code: the six `requirement()` / `fault()` pairs (`goad_semantics::error`:
+  `ProtocolError`, `BoundsError`, `ScheduleError`; `goad_shell::error`:
+  `BackendError`, `CleanupFailure`, `StateError`) and their private builders
+  (`every_protocol_error`, `every_bounds_error`, `every_schedule_error`,
+  `every_backend_error`, `every_cleanup_failure`, `every_state_error`) for
+  instance values; `goad_check`'s `render::exchange_lines`, `refusal_line`,
+  `respond_line`, `probe_claim_line`, `chain_bound_line`, `verdict_line`,
+  `refused_line`, `NO_VIEW`, `USAGE`; `run::PROBE_KIND`, `run::CHAIN_BOUND`,
+  `run::charges_the_probe`; `Submitted::as_drawn`; `config::default_path`;
+  `tests/support/fences.rs` (`Fence`, `fences`); `tests/kit/tree.rs`;
+  `tests/kit/tagged.rs` `NOW` (the instant every response fence's relative
+  `next_check` resolves against); `goad-emit`'s `USAGE`.
+- Style and anchor form: `reference/protocol.md` and `reference/running.md`
+  (h1 title, an opening paragraph defining *backend* / *host*, h2 per task, h3
+  `### SPEC-00N/R-N — <the rule in words>` per stated rule, links by file
+  name).
+- PHASE-07 sheet: D-7 (the anchor rule), D-8 (one home per id), X-7 (a
+  host-internal rule is one line with no id), its Findings *VA-3*; PHASE-06
+  Findings *VH-1, the person's run*.
+- `docs/memory/`: `negative-control-must-compile`,
+  `a-green-test-can-assert-a-proxy`,
+  `a-substring-scan-and-a-word-boundary-scan-are-different-instruments`. The
+  user's memory adds *a standing guard may not reach a new file*, *tests
+  asserting proxies*, *mutation-check the coverage claim*.
+
+**Assumptions — verified now** (at 3dc8d2b, by reading and the runs named)
+- **A-V1 — the reportable id set, read from the code** (item 1). Every arm of
+  the six `requirement()`s returns one of `Requirement`'s constants, and every
+  constant but `R56` is returned by some arm:
+
+  | taxonomy | variant → id |
+  |---|---|
+  | `ProtocolError` | `Json`, `Shape`, `DuplicateKey` → R-44; `NestedHints` → R-18; `UnsupportedProtocolVersion` → R-3; `UnsupportedPrimitive` → R-12; `InapplicableKey` → R-53 when `key == "fields"`, else R-50; `MissingField` → R-10; `EmptyOptions` → R-13; `DuplicateOptionId` → R-14; `DuplicateFieldId`, `DuplicateAlternativeId` → R-52; `EmptyAlternatives` → R-16; `Bounds`, `Schedule` → the inner's |
+  | `BoundsError` | `NotFinite`, `Inverted` → R-17 |
+  | `ScheduleError` | `NotAString`, `OutOfRange`, `Unparseable` → R-25; `MissingOffset` → R-22; `TimeOfDay` → R-21; `CalendarUnit` → R-23 |
+  | `BackendError` | `Spawn` → R-44; `Timeout` → R-41; `ExitStatus` → R-40; `OutputTooLarge` → R-43; `PipeMissing`, `Io` → R-45; `Protocol` → the inner's |
+  | `CleanupFailure` | `TimedOut`, `Io` → R-48 |
+  | `StateError` | `NoOutstandingView`, `StaleViewId` → R-32 |
+  | the checker | `Requirement::R56` |
+
+  `ConfigError` and `EnvelopeFault` name no requirement (status 2, outside
+  R-59). The headings today (`command grep -nE '^#+ ' reference/*.md`):
+  `protocol.md` holds R-3, R-10, R-12, R-13, R-14, R-16, R-17, R-18, R-32,
+  R-44, R-50, R-52, R-53, R-56; `running.md` holds R-40, R-41, R-43, R-45,
+  R-48; no heading names two ids. **PHASE-07's claim is confirmed**: VT-1
+  written now is red on exactly `SPEC-001/R-21`, `R-22`, `R-23`, `R-25`.
+  `protocol.md` mentions `SPEC-001/R-25` only in body text (a
+  cross-reference), which VT-1 does not count.
+- **A-V2 — every variant can be built in `goad-check`'s test target** (item
+  2). All six enums and their fields are `pub`. The non-trivial payloads:
+  `serde_json::Error` for `Json` / `Shape` (from a failed
+  `serde_json::from_str`; `serde_json` is a `[dev-dependencies]` entry);
+  `std::io::Error::other` for `Spawn`, `Io`, `CleanupFailure::Io`;
+  `std::time::Duration`; `ViewId::new` (`pub`) for `StateError`. The private
+  builders in `goad_semantics::error`'s and `goad_shell::error`'s `mod tests`
+  cannot be reused across a crate edge (design §5.2.6), so this phase builds
+  its own — a third copy of each (task 8's §Open row).
+- **A-V3 — reach, with no manifest change** (item 2). `goad-check`'s
+  `[dependencies]` hold `goad-semantics` and `goad-shell`; a test target sees
+  a package's ordinary dependencies. `Requirement::R56` is read as
+  `goad_semantics::error::Requirement::R56`, never respelled (VT-1's
+  sentence).
+- **A-V4 — the scanner already returns what VT-1 needs** (item 2, F-28).
+  `fences::fences` yields `Fence { info, body: Range<usize> }`, `body` running
+  from the line after the opener to the start of the closer, line-aligned. A
+  line whose start offset lies in some fence's `body` is a fenced line; the
+  opener and closer lines lie outside every `body`, but each begins (after at
+  most three spaces) with three or more `` ` `` or `~`, so neither can be a
+  `#` heading. So VT-1 skips every fenced line using `body` alone: **no new
+  symbol** in `tests/support/fences.rs`, and the plan's STOP does not fire.
+  `info` stays used by `tagged.rs` in the same target, so `dead_code` is
+  quiet.
+- **A-V5 — EX-5's statement is already written.** `protocol.md`'s opening:
+  *"The specifications those ids come from are not shipped: each id a report
+  can print is explained in this reference, under a heading of its own."* It
+  becomes true when VT-1 goes green. `protocol.md` and `running.md` already
+  link `scheduling.md` and `events.md`, which do not exist yet: two dangling
+  links this phase resolves (task 8 checks every relative link).
+- **A-V6 — the report as `goad-check` prints it** (item 3), from `render`:
+  `evaluate <kind>`; `  view <view_id>: "<title>" · next check <instant>` or
+  `  view: null · next check <instant>`; `  respond <option> with
+  <field>=<value> …` (or `with no values`); `  REFUSED  <side>
+  SPEC-001/R-N  <what>`; the probe claim on its own `REFUSED` line; `  stderr:
+  <line>` and `  stderr truncated: …`; the chain-bound line; `NO_VIEW`
+  (*"no exchange returned a view, so respond was not exercised"*); `verdict:
+  accepted, no exchange refused` / `verdict: refused, N exchange(s)
+  refused`; and on stderr, last, `goad-check: …`. The view line is built from
+  `Judged`'s `view` and `next_check` **after** the exchange: on a failure the
+  view is always absent and the next check is what the host kept (SPEC-001
+  R-29). That is the VH-1 observation's cause, and it is explainable in prose
+  (D-10).
+- **A-V7 — `SKILL.md` today** (item 4): frontmatter `name: goad-backend`,
+  `description: Use when writing or fixing a backend program for goad, the
+  desktop intervention shell.`, then one body line, the PHASE-05 marker
+  (`QUINCE-BAROMETER-73`). `git grep -n QUINCE` → `SKILL.md` and five lines of
+  PHASE-05's record in this file, nothing else: no script, test or
+  `goad-walk` file asks for it (`git -C ~/dev/goad-walk grep -n QUINCE` →
+  none; `docs/slices/012/walk/` does not exist yet). `goad-walk`'s lock pins
+  `2f1bf47`, which keeps the marker until PHASE-09 bumps it.
+- **A-V8 — EX-4 holds today.** `nix develop --command claude plugin validate
+  kit/` → `✔ Validation passed`, exit 0; `--strict` passes too. Versions:
+  `kit/.claude-plugin/plugin.json` and `kit/.codex-plugin/plugin.json` both
+  `"version": "0.1.0"`, `workspace.package.version = "0.1.0"`.
+- **A-V9 — the standing instruments reach the new files** (item 5).
+  - *PHASE-07/VT-1* (`every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`)
+    walks every `*.md` under `kit/` by `tree::files`: the three new reference
+    files and `SKILL.md` are read the moment they exist. Reach: R-1 (VA-2),
+    R-2, R-3.
+  - *PHASE-07/VT-5* (`nothing_in_the_kit_names_a_path_outside_it`, I-5) walks
+    every file under `kit/`. Reach: R-4, R-5. A mention of a tracked prefix —
+    `docs/…`, `crates/…`, `exercisers/…`, `tests/…`, `nix/…`, `assets/…` —
+    preceded by a non-path character is a breach, so the new prose must name
+    no repository path (the specs, the exercisers) as a path.
+  - *VT-1 of this phase* walks every `*.md` under `reference/`. Reach: R-6.
+  - *clippy, fmt* over `coverage.rs` once declared in `main.rs`: R-7, R-8.
+  - *The compile gate* the design names (an exhaustive match with no `_`
+    arm): R-9.
+  - *The vocabulary scan* and *deno check* reach neither `tests/kit/` nor
+    `kit/`, by design (PHASE-07 A-V8). No row.
+- **A-V10 — no person-runs** (item 6). PHASE-08's Verification has no VH
+  criterion, so there are no hand-over blocks. (Had there been: nushell, each
+  status-printing call under `do -i { … }` or read from `complete`.)
+
+**Assumptions — first tested by this phase**
+- **A-T1 — every id's heading can sit in the file whose task states it.**
+  Scheduling's four ids in `scheduling.md`; R-56 stays in `protocol.md` (one
+  home per id, PHASE-07 D-8), and `checking.md` cross-references it in body
+  text.
+- **A-T2 — each `discarded R-N` fence for the scheduling ids is constructible
+  through `read_response` at `tagged.rs`' `NOW`.** R-21 (`"18:00"`), R-22
+  (an instant with no offset), R-23 (`"1 month"`), R-25 (`45`, not a string)
+  are expected to be; an `OutOfRange` value may not be (the span grammar's
+  unit bound may refuse it as `Unparseable` first — also R-25). The door
+  decides; a fence that does not pass is rewritten to a value that does, or
+  shown as `text`.
+- **A-T3 — `SKILL.md` can route without teaching** inside one short page,
+  with no `json` / `toml` fence (EX-2). An `sh` fence for the install commands
+  is not a wire example and is not checked.
+- **A-T4 — the install route `SKILL.md` gives works as written** (`nix build
+  github:davidlee/goad#goad-check`, or `cargo install --git
+  https://github.com/davidlee/goad goad-check goad-emit`). Not run by this
+  phase (network, and the walk is its test): VA-1 reads it against `flake.nix`'s
+  `packages` (`goad-check`, `goad-emit`) and the crate names.
+
+**STOP conditions** (consult the user; do not improvise)
+- A file outside **Surfaces**, including any `Cargo.toml`, any
+  `tests/support/` file, any example file and any plugin manifest.
+- A dependency of any kind.
+- A symbol VT-1 seems to need from the scanner that `fences` does not
+  return (plan VT-1: *"a new symbol must be used by both includers … neither
+  `tests/support/` nor `round_trip.rs` is this phase's surface"*).
+- A variant that cannot be built in the test target without a new `pub`
+  constructor in `src`.
+- An id the code can answer that the reference cannot state without teaching
+  something host-internal, or a spec row and the code disagreeing.
+- A `_` arm, or `#[allow]` / `#[expect]`, in `coverage.rs`.
+- A fence already in the kit, or an I-5 breach in a file this phase does not
+  own, that the new runs surface: a finding, not an edit.
+- Report wording (`crates/goad-check/src/render.rs`) seeming to need a
+  change: PHASE-10's surface, not this one's (D-10).
+- Any PLAN QUESTION unresolved when a task it blocks is reached.
+- A `path:` flake reference; any lock-changing nix command.
+- `git stash`, `git checkout`, `git reset`, `git rebase`, `--amend`, or any
+  history rewrite. Mutations and plants are copied to the scratchpad and
+  copied back. Commit with `git commit -m … -- <paths>`, then `git show
+  --stat HEAD`: only your paths.
+- Another writer in this worktree.
+
+**Decisions applied by this sheet** (inside the design's latitude; the
+executor may overturn one only by recording why under **Decisions taken
+during execution**)
+- **D-1 — the module.** `crates/goad-check/tests/kit/coverage.rs`, declared
+  `#[cfg(test)] mod coverage;` in `main.rs`, whose module doc gains a clause
+  for the coverage test. It holds: the six builders; one exhaustive match per
+  taxonomy (D-2); `required()` — every `(id, variant)` pair, the id as
+  `format!("SPEC-001/{}", e.requirement())`, plus `Requirement::R56` paired
+  with *"the checker's R-56 claim"*; `heading_ids(markdown: &str) ->
+  BTreeSet<String>` (D-3, D-4), pure; VT-1 and VT-2. The `SPEC-001/` prefix is
+  the report's (`render`'s `refusal_line`), spelled once as a named constant
+  with a comment saying so; the binary tier holds the report's spelling of it
+  (`run.rs`' `a_line_names` cases assert `SPEC-001/R-…`).
+- **D-2 — builder and match, side by side.** Per taxonomy, a
+  `fn <taxonomy>_variant(&E) -> &'static str` that matches every variant by
+  name with no `_` arm and returns its path (`"ScheduleError::TimeOfDay"`),
+  immediately followed by `fn every_<taxonomy>() -> Vec<E>` building one
+  instance per variant in the match's order — two for `InapplicableKey`
+  (`key: "min"` and `key: "fields"`). The wrapper variants (`ProtocolError::
+  Bounds`, `ProtocolError::Schedule`, `BackendError::Protocol`) are built by
+  mapping over the inner builder, so the delegation is read, not assumed.
+  The match is not decorative: `required()` pairs each instance's id with its
+  variant's name, and VT-1's failure names, for each missing id, the variants
+  that answer it. The comment above the first match states the design's
+  limit in its words (a new variant fails to compile only at the match;
+  whether an instance is added beside the arm is review), citing design
+  §5.2.6 and §Open's derive row.
+- **D-3 — what a heading is** (a narrowing of *"a Markdown heading line"*): a
+  line that begins at column 0 with one to six `#` followed by a space or the
+  end of the line. Indented headings (1–3 spaces) are not counted — a false
+  red, the safe direction; the reference indents none. Setext headings are
+  not counted (PHASE-07 D-7 does not use them).
+- **D-4 — what an id is, and the matching rule.** An id occurrence is
+  `SPEC-` + one or more ASCII digits + `/R-` + one or more ASCII digits, the
+  digit runs read greedily, so the id ends at a non-digit or the end of the
+  line: `SPEC-001/R-32` is one id, and never contains `SPEC-001/R-3` (the
+  design's rule, held by equality on whole ids, not by substring search). A
+  heading counts only when it holds exactly one occurrence; it then
+  contributes that id. Any spec's ids count towards "exactly one", so a
+  heading naming `SPEC-001/R-56` and `SPEC-003/R-13` contributes neither.
+  Hand-written; no regex (no dependency).
+- **D-5 — fenced lines skipped by `body`.** `heading_ids` walks
+  `markdown.split_inclusive('\n')` with a running offset and skips a line
+  whose start lies in any `fences(markdown)` `body` range (A-V4). An empty
+  body range contains nothing.
+- **D-6 — VT-1's shape.** Files: `tree::files(&tree::root().join(
+  "skills/goad-backend/reference"))` filtered to `.md`, refusing an empty set
+  with a message naming the directory. Found: the union of each file's
+  `heading_ids`. Missing: every `required()` id not found. One failure names
+  every missing id with its variants (*"SPEC-001/R-21 (ScheduleError::
+  TimeOfDay) has no heading of its own under reference/"*), so a mutation row
+  sees each id it removes. No count is asserted.
+- **D-7 — `checking.md`'s headings.** It states, each under a heading of its
+  id (PHASE-07 D-7): the sides, under `SPEC-001/R-59`; the statuses, under
+  `SPEC-004/R-11`, `SPEC-004/R-12`, `SPEC-004/R-13`. These ids are fixed by
+  `canon-delta.md` (SPEC-001 Change 1: *"No requirement id is renumbered. One
+  is added: R-59, the next free id"*; SPEC-004 Change 3) and land in canon at
+  audit; the reference ships no spec, so a reader never sees the gap. Task 8
+  adds an §Open row so promotion keeps the ids or updates `checking.md`. R-56
+  and every refusal id stay in their PHASE-07 homes; `checking.md` points at
+  them in body text. No other heading in `checking.md` names a SPEC-001 id
+  VT-1 requires.
+- **D-8 — the new files' fences.** `scheduling.md` carries one `json
+  goad:response discarded R-N` fence per scheduling id where A-T2 allows
+  (R-21, R-22, R-23, R-25), and at least one accepted `json goad:response`
+  with each `next_check` form (an absolute instant with an offset; a span),
+  so every claim of the form *"this value is discarded under R-N"* is checked
+  by the door. `events.md` carries at least one `json goad:envelope` fence and
+  the `goad-emit` and `goad-check --event` invocations as `sh`. `checking.md`
+  carries the report as `text` (the report is not JSON), a `goad-check
+  --event` envelope as `json goad:envelope` if it shows one, and a config as
+  `toml goad:config` if it shows one.
+- **D-9 — `SKILL.md`'s body** (EX-2, design *SKILL.md's job*), in this order:
+  when to use it (one sentence, consistent with the frontmatter's
+  description); the loop (write the backend → `goad-check` → fix → write the
+  config → a person runs `goad`); how to get the binaries (flake packages
+  `goad-check` and `goad-emit` from `github:davidlee/goad`, or `cargo install
+  --git https://github.com/davidlee/goad goad-check goad-emit`), in an `sh`
+  fence or inline; one line per reference file, by the question it answers
+  (`reference/protocol.md` … `reference/checking.md`); one line per example
+  (`examples/focus-check/`, `examples/downloads-triage/`,
+  `examples/breadcrumbs/`) by what it demonstrates. No `json` / `toml` fence;
+  no rule restated with its id. The marker line is deleted (EX-6). The
+  frontmatter is unchanged.
+- **D-10 — the VH-1 observations are `checking.md` prose** (item 3). Neither
+  needs a change the plan does not allow:
+  - *`view: null · next check …` above a `REFUSED` line*: `checking.md`'s
+    *read the report* section says the view line is what the host holds
+    after the exchange, not what the backend sent; that after a failure it is
+    always `view: null` and the next check is the one the host kept
+    (SPEC-001/R-29, cross-referenced to `scheduling.md`), so a `REFUSED` line
+    below it is the exchange's verdict. Changing the line's wording is
+    `render.rs`, PHASE-10's surface, and only from a walk's friction row.
+  - *Triage's gate run reads as a failed move*: `checking.md` says a
+    `respond` line is the answer the checker sent (the first option, each
+    field's untouched value), not what the backend did with it, and that a
+    `stderr:` line is the backend's own diagnostic, never a refusal — only a
+    `REFUSED` line is. The triage README already says the file is absent and
+    the backend reports it on stderr (*"The file is not there, so the backend
+    says so on stderr …"*, under *See it in under a minute*); the README is
+    not this phase's surface, so it is not edited. If the walks still trip on
+    it, PHASE-10 decides.
+
+**Tasks** — order matters: the coverage test first, red; then the prose that
+turns it green; then the prose it does not depend on; then `SKILL.md`. Red
+first for every test.
+
+- [ ] Set PHASE-08 to `in progress` in §Status.
+- [ ] Print `git log -1 --oneline` (this sheet's commit, or a descendant whose
+      only changes resolve its PLAN QUESTION) and `git status --short` (clean;
+      the ignored socket pairs under the examples are not listed).
+- [ ] PLAN QUESTION 1 resolved, or the recommended name taken as the
+      default it proposes; record which before task 1's VT-2 box.
+- **1. The coverage machinery and its control (VT-2)** — `coverage.rs`
+  - [ ] `main.rs`: `#[cfg(test)] mod coverage;` in alphabetical place; the
+        module doc's list gains *"every requirement a refusal can name is
+        explained in the reference"*.
+  - [ ] The six match/builder pairs and `required()` (D-1, D-2). Compile.
+  - [ ] **Red**: VT-2 (quoted): *"its negative control over an inline string
+        where `SPEC-001/R-32` appears in a heading of its own, `SPEC-001/R-3`
+        does not appear, `SPEC-001/R-40` appears only in body text,
+        `SPEC-001/R-36` appears only on a `#` line inside a fenced block, and
+        `SPEC-001/R-41` and `SPEC-001/R-42` appear only together in one
+        heading: R-32 is found, and R-3, R-40, R-36, R-41 and R-42 are
+        not."* Name per PLAN QUESTION 1. All six assertions collected before
+        one `assert!` (PHASE-07 X-8), so a mutation shows every case it
+        flips. Written against `heading_ids` stubbed to return every id
+        occurrence in the text (fences, body and all): it compiles and reds
+        on R-40, R-36, R-41, R-42 (R-3 is held by D-4's equality even in the
+        stub; M-2 is its mutation). Record the failure text.
+  - [ ] `heading_ids` per D-3, D-4, D-5. VT-2 green. Record the result line.
+- **2. VT-1, red**
+  - [ ] **Red**: VT-1 (quoted): *"`every_requirement_a_refusal_can_name_is_explained_in_the_reference`:
+        its id set is one instance per variant (two for `InapplicableKey`),
+        each builder beside an exhaustive match with no `_` arm, and the
+        checker's own R-56 claim as `Requirement::R56`, read through
+        `goad-semantics`, not respelled. … It reads every `*.md` under
+        `kit/skills/goad-backend/reference/`, enumerated and not listed,
+        refusing an empty set, through the shared scanner (PHASE-07/EX-4),
+        skipping every fenced line. An id counts only in a Markdown heading
+        line that names exactly that one requirement id and no other
+        (PHASE-07/EX-3); an id matches only when followed by a non-digit or
+        the end. Seen red before `scheduling.md`, `events.md` and
+        `checking.md` are written."* D-6. `nix develop --command cargo test
+        -p goad-check --test kit --no-fail-fast`. Expected red on exactly
+        `SPEC-001/R-21`, `R-22`, `R-23`, `R-25`, each with its variants
+        (A-V1). Record the failure text; any other id missing is a finding
+        before going on.
+- **3. `scheduling.md`** (EX-3's sibling; VA-1)
+  - [ ] Organised by task (for example *Say when to check again*, *What the
+        host does with it*, *When the value is wrong*). States, each under
+        its heading, `SPEC-001/R-21`, `R-22`, `R-23`, `R-25` (VT-1's four),
+        and the other R-21..R-29 rules an author relies on — R-24, R-26,
+        R-27, R-28, R-29 as the executor selects, recorded. From SPEC-002,
+        what an author observes: a resolved check fires without a person
+        asking (R-1); an elapsed instant fires once, not repeatedly (R-3);
+        firings are spaced (R-4's spacing as one observed line, since a past
+        instant on every answer does not make a loop); an earlier instruction
+        shortens a pending wait and a later one lengthens it (R-7); missed
+        intervals are not caught up (R-11). Host-internal mechanism (the
+        timer, the clock-failure handling, cancellation) at most one line
+        each, no id (PHASE-07 X-7). SPEC-002 ids cited under headings only
+        where a rule is stated. `default_poll` points at `running.md`'s
+        config section. D-8's fences, each through its door (A-T2). No path
+        outside the kit.
+  - [ ] VT-1 green; PHASE-07/VT-1 green over the new file. Record both
+        result lines and the new checked-fence count (VA-1 of PHASE-07's
+        kind: by role).
+- **4. `events.md`**
+  - [ ] Organised by task (for example *Forward an event*, *What the host
+        replies*, *What your backend receives*). From SPEC-003, what a writer
+        and a backend author must do or may rely on: the socket exists only
+        when `[ingress] path` is configured (R-1); one envelope per
+        connection, newline- or close-terminated (R-6); the envelope's four
+        keys and the timestamp's offset (R-9, R-10); exactly one reply, its
+        closed reason set and that a reader branches on the reason, not the
+        detail (R-8, R-14, §6.3); the event reaches the backend verbatim as
+        an `evaluate`'s event (R-11; SPEC-001/R-7, cross-referenced to
+        `protocol.md`); an envelope during an exchange or within the spacing
+        is refused, not queued, with `retry_after` on `too_soon` (R-12); the
+        reserved source `host` is refused (R-13; SPEC-001/R-56,
+        cross-referenced). The socket's mode, liveness lock, read bounds and
+        reclamation (R-2..R-5, R-7) at most one line each on what the writer
+        observes. `goad-emit`'s invocation and its statuses (SPEC-004
+        `goad-emit` rows, canon-delta Change 3) and `goad-check --event`,
+        pointing at `checking.md`. D-8's fences. No path outside the kit.
+  - [ ] VT-1 and PHASE-07/VT-1, VT-5 green. Record.
+- **5. `checking.md`** (EX-3)
+  - [ ] EX-3 (quoted): *"`checking.md` explains the checker's forms and what
+        it sends, the four sides in R-59's terms, where else to look for each
+        kind with a declared imprecision, that a run mutates real state (and
+        the `XDG_*` advice), that a relative `command` resolves against the
+        starting directory, and statuses 0, 1 and 2."* Concretely:
+        - *Run it*: the four forms (`--config PATH`, defaulting to the
+          host's own path; `-- PROGRAM [ARG]…` with `--timeout SPAN`,
+          default `5s`; `--event FILE`, repeatable; `--help`, `--version`);
+          the exclusions (`--config` with `--`; `--timeout` without `--`);
+          that the config form runs exactly the command and timeout goad
+          will run, ignoring `[ingress]`; that a relative `command` resolves
+          against the directory `goad-check` was started in, so one it
+          accepts from there is one a host started elsewhere cannot spawn
+          (point at `running.md`'s *Name your command*).
+        - *What it sends*: `startup`, `requested`, `scheduled`, then the
+          probe — source `host`, a kind none of the three
+          (`goad-check-unrecognised`, `run::PROBE_KIND`) — then each
+          `--event` envelope in order; `now` and `timestamp` from the wall
+          clock, `data` `null`; each view answered with its first option and
+          each drawn field's untouched value (`Submitted::as_drawn`: `false`,
+          `""`, the range's minimum or zero, the first alternative, the 1970
+          instant), up to a chain bound of 8 responds per request; no
+          `--now`, so a backend that speaks only at some hours is checked at
+          an hour it speaks.
+        - *A run mutates real state*: every exchange runs your backend for
+          real; set `HOME` and the `XDG_*` variables to a scratch directory
+          to keep a check off your own state (the examples keep theirs under
+          `$XDG_STATE_HOME`).
+        - *Read the report*: A-V6's line forms, and D-10's two readings.
+        - *Sides* under `SPEC-001/R-59` (D-7): backend, configuration, host,
+          environment, in R-59's terms; one side per kind; and where else to
+          look for each kind whose cause can lie elsewhere — a timeout
+          (`SPEC-001/R-41`): the configured window; a signalled backend
+          (`R-40`, no exit code): whatever else sends signals; a spawn
+          refused (`R-44`, configuration side): the operating system's error,
+          which may be resources; a timed-out disposal (`R-48`, backend
+          side): your backend's own child processes, since the host names no
+          process state. Each id named in body text, pointing at its home.
+        - *The R-56 claim*: when the report charges it (the probe failed on
+          the backend's side while at least one of the three known kinds'
+          evaluates did not fail), and when it does not; pointing at
+          `protocol.md`'s `SPEC-001/R-56`.
+        - *Statuses* under `SPEC-004/R-11`, `R-12`, `R-13` (D-7): 0 a verdict
+          and nothing reported (also `--help`, `--version`); 1 a verdict and
+          at least one refusal, whichever side; 2 no verdict, whatever the
+          cause, with a `goad-check: …` line last on stderr; and what each
+          does not let a reader infer (canon-delta SPEC-004 Change 4's
+          table): 0 is not *correct*, 1 is not *the backend's fault*. The
+          chain bound and `NO_VIEW` are observations, not statuses.
+  - [ ] VT-1 and PHASE-07/VT-1, VT-5 green. Record.
+- **6. `SKILL.md` (EX-2, EX-6)**
+  - [ ] The body per D-9; the marker line deleted.
+  - [ ] EX-2 (quoted): *"`SKILL.md` routes and does not teach: when to use
+        it, the loop, how to get the binaries, one pointer per reference file
+        by the question it answers, one line per example; no wire example of
+        its own."* `command grep -nE '^ {0,3}(```|~~~)' kit/skills/goad-backend/SKILL.md`
+        → no `json` / `toml` opener; record the hits.
+  - [ ] EX-6 (quoted): *"the marker line PHASE-05 put in the placeholder
+        `SKILL.md` is gone; no load check after this phase asks for it
+        (PHASE-11/EX-2)."* `git grep -n QUINCE -- kit docs/slices/012/walk`
+        → nothing (PHASE-05's record in `notes.md` remains: history).
+  - [ ] **The fact PHASE-11 will ask for** (PHASE-11/EX-2: *"a fact only that
+        finished body states, in neither the frontmatter nor the prompt"*).
+        Choose one short phrase of the finished body that a model could not
+        guess — for example the exact `cargo install --git …` line — and
+        check it is unique: `command grep -rnF '<phrase>' kit` → `SKILL.md`
+        only, not in its frontmatter. Record it under **Findings** as
+        *PHASE-11's fact*, quoted, with the grep, so the orchestrator writes it
+        into PHASE-11's sheet. If no phrase is unique, record that instead of
+        inventing one.
+  - [ ] PHASE-07/VT-1 and VT-5 green over the new `SKILL.md`. Record.
+- **7. Refactor**
+  - [ ] `tree.rs` gains the skill root (`root().join("skills/goad-backend")`)
+        if both `examples.rs`' `examples_root` and `coverage.rs`' reference
+        directory then read from it and code goes; record what changed, or
+        why nothing did. `coverage.rs` and `tagged.rs` share nothing they
+        would duplicate (record any helper that is).
+  - [ ] Read `coverage.rs` against D-2: every match beside its builder, no
+        `_` arm (`command grep -n '_ =>' crates/goad-check/tests/kit/coverage.rs`
+        → nothing), the limit comment present.
+- **8. Evidence**
+  - [ ] EX-1 (quoted): *"PHASE-07/VT-1 is green over the finished kit, and
+        VA-2 shows it read a file this phase wrote."* — the green result line
+        and row R-1.
+  - [ ] EX-4 (quoted): *"`claude plugin validate kit/` passes, and the
+        manifests' versions still match."* `nix develop --command claude
+        plugin validate kit/` → `✔ Validation passed`; `command grep -n
+        '"version"' kit/.claude-plugin/plugin.json kit/.codex-plugin/plugin.json`
+        and `command grep -n '^version' Cargo.toml` → all `0.1.0`. Record.
+  - [ ] EX-5 (quoted): *"the reference says the specs are not shipped, and
+        that every id a report prints is explained in the reference itself
+        (§5.2.6, *The reference's structure*)."* Quote the sentence (A-V5)
+        and its file; VT-1 green is what makes it true.
+  - [ ] VA-1 (quoted): *"every reference file read: `scheduling.md` and
+        `events.md` against SPEC-001 R-21..R-29, SPEC-002 and SPEC-003;
+        `checking.md` against `design.md` §5.2.5 and `canon-delta.md`
+        SPEC-004; and all of them, with `protocol.md` and `running.md`, for
+        nothing host-internal taught — bounds, cleanup and renderer subsets
+        appear at most as one line saying what the author observes — and for
+        EX-5's statement. Recorded."* One block per file under **Findings**:
+        each heading's id against its row; each body claim of the form
+        *"discarded under R-N"* against a checked fence; `checking.md`'s line
+        forms against `render` (A-V6) and its statuses against SPEC-004
+        canon-delta; `SKILL.md`'s install route against `flake.nix` (A-T4).
+        Also: every relative link in `reference/*.md` and `SKILL.md` resolves
+        (`command grep -noE '\]\([^)#]+' …`, each target `ls`ed); each id
+        VT-1 requires has exactly one heading across the reference (`command
+        grep -nE '^#+ .*SPEC-001/R-[0-9]+' reference/*.md`, PHASE-07 D-7).
+  - [ ] VA-2 (quoted): *"reach: an untagged `json` fence planted in
+        `scheduling.md` reds PHASE-07/VT-1; restored. Recorded."* — row R-1.
+  - [ ] VA-3 (quoted): *"I-2 over `crates/goad-check`'s tests as this phase
+        leaves them (the matches beside the coverage builders), by the command
+        under *Invariant reads*. Recorded."* `command grep -rn 'FieldKind'
+        crates/goad-check`; each hit read for a kind mapped to a JSON type or
+        a value. Expected unchanged from PHASE-07/VA-6: two hits, `tagged.rs`'
+        `use` and `respond`'s `if let FieldKind::Choice { alternatives }`;
+        `coverage.rs`' matches are over error taxonomies and name no
+        `FieldKind`.
+  - [ ] Mutation and reach rows (below), each recorded.
+  - [ ] `nix develop --command just check` exit 0. Record the summed passed
+        count: the entry count (747) plus this phase's new cases (VT-1,
+        VT-2).
+- **9. Close**
+  - [ ] §Harvest updated: Produced (`coverage.rs` and its symbols; the three
+        reference files; the finished `SKILL.md`); Learned; Open — the
+        third copy of the six builders, beside *Two `every_protocol_error`
+        builders* (A-V2); D-7's canon-delta ids in `checking.md`, for
+        promotion; the PLAN QUESTION 1 name for audit if not in §9; and the
+        PHASE-06 VH-1 row marked discharged by `checking.md` (D-10), the
+        triage README half left to the walks.
+  - [ ] PHASE-08 `done` in §Status.
+  - [ ] Commit the surfaces and this sheet's records with `git commit -m
+        "012 PHASE-08: …" -- <paths>`; `git show --stat HEAD` lists only
+        them.
+
+**Exit criteria** (quoted in the tasks above; listed here to be ticked)
+- [ ] EX-1
+- [ ] EX-2
+- [ ] EX-3
+- [ ] EX-4
+- [ ] EX-5
+- [ ] EX-6
+- [ ] VT-1
+- [ ] VT-2
+- [ ] VA-1
+- [ ] VA-2
+- [ ] VA-3
+
+**Mutation evidence** (`plan.md` *Mutation evidence*: copy the file to the
+scratchpad, edit, run with `--no-fail-fast`, copy back; `git status --short`
+clean after each restore). A Markdown mutation has no build: its row records
+that the mutated file was the one the test read (the failure names the id).
+Instrument, unless the row says otherwise: `nix develop --command cargo test
+-p goad-check --test kit --no-fail-fast`.
+
+| row | file / symbol | edit | must red | must stay green | compiled? / file read | redded | restored |
+|---|---|---|---|---|---|---|---|
+| M-1 (the id removed) | `reference/scheduling.md`, the `SPEC-001/R-21` heading | the heading line demoted to body text (`#` prefix removed) | VT-1, naming `SPEC-001/R-21` and `ScheduleError::TimeOfDay`, and no other id | VT-2; PHASE-07's cases | | | |
+| M-2 | `coverage.rs`, D-4's equality | an id compared as a prefix (`starts_with`) of the heading's id | VT-2 (R-3 found inside R-32's heading) | VT-1 | | | |
+| M-3 | `coverage.rs`, D-5's skip | fenced lines not skipped | VT-2 (R-36 found) | VT-1 | | | |
+| M-4 | `coverage.rs`, D-3's heading test | every line read, heading or not | VT-2 (R-40 found) | VT-1 | | | |
+| M-5 | `coverage.rs`, D-4's "exactly one" | a heading contributes every id it holds | VT-2 (R-41 and R-42 found) | VT-1 | | | |
+| M-6 | `coverage.rs`, VT-1's file filter | `.md` → `.mdx` (an empty set) | VT-1, on the empty-set refusal naming `reference/` | VT-2 | | | |
+| M-7 | `reference/protocol.md`, the `SPEC-001/R-56` heading | demoted to body text | VT-1, naming `SPEC-001/R-56` and *the checker's R-56 claim* — the `Requirement::R56` entry is what holds it | VT-2 | | | |
+| M-8 | `coverage.rs`, `every_protocol_error` | the `InapplicableKey { key: "fields", … }` instance removed | **nothing expected**: R-53 stays required by no instance and VT-1 stays green. This is the design's declared limit (compile gate plus review), run so the record shows it rather than asserts it | — | | | |
+| M-9 | `reference/running.md`, the `SPEC-001/R-41` heading | `SPEC-001/R-41` → `SPEC-001/R-41 and SPEC-001/R-42` in the heading line | VT-1, naming `SPEC-001/R-41` and `BackendError::Timeout` (a heading with two ids counts for neither, in a real file) | VT-2 | | | |
+
+**Reach proofs** (the same rules)
+
+| row | instrument | plant | must find | result | restored |
+|---|---|---|---|---|---|
+| R-1 (VA-2) | PHASE-07/VT-1 over `scheduling.md` | an untagged ```` ```json ```` fence holding `{"view": null}` | PHASE-07/VT-1 red naming `scheduling.md` and the line, `untagged` | | |
+| R-2 | PHASE-07/VT-1 over `checking.md` and `events.md` | a `jsonc` fence in `checking.md`; separately, `json goad:nonesuch` in `events.md` | red naming `checking.md`, `misspelt`; red naming `events.md`, `UnknownRole` | | |
+| R-3 | PHASE-07/VT-1 over `SKILL.md` | an untagged ```` ```json ```` fence in `SKILL.md` | red naming `SKILL.md` | | |
+| R-4 | PHASE-07/VT-5 (I-5) over `checking.md` | `crates/goad-shell/src` in body text | VT-5 red naming `checking.md`, `Mention` | | |
+| R-5 | PHASE-07/VT-5's escaping half over `SKILL.md` | `../../../crates/goad-check/src` (from `kit/skills/goad-backend/`, three `../` reach the repository root; count it before trusting a green — PHASE-07's R-4) | VT-5 red naming `SKILL.md`, `Escaping` | | |
+| R-6 | VT-1's enumeration | M-1's demotion, plus a new `reference/planted.md` holding `### SPEC-001/R-21 — planted` | VT-1 **green** (the new file is read), then red naming `SPEC-001/R-21` once `planted.md` is removed with M-1 still applied | | removed; M-1 restored |
+| R-7 | clippy over `coverage.rs` | an unused `fn planted() {}` | `nix develop --command cargo clippy -p goad-check --all-targets -- -D warnings`: `function planted is never used`, naming `coverage.rs` | | |
+| R-8 | fmt over `coverage.rs` | one line misindented | `cargo fmt --all --check`: `Diff in …/tests/kit/coverage.rs` | | |
+| R-9 | the compile gate (design §5.2.6, *Its limit*) | in a scratch copy of `crates/goad-semantics/src/error.rs`, a `BoundsError::Planted` variant, with an arm added to every match in `goad-semantics` and `goad-shell` the compiler names until both build (each recorded) | `nix develop --command cargo test -p goad-check --test kit --no-run`: `error[E0004]` naming `coverage.rs`' `BoundsError` match — and no error at `every_bounds_error`, which is the limit | | every scratch-edited file copied back; `git status --short` clean |
+
+The vocabulary scan and `deno check` have no row: neither reaches these
+files, by design (A-V9).
+
+**Decisions taken during execution**
+
+(none yet)
+
+**Findings**
+
+- **PLAN QUESTION 1 — VT-2 has no test name.** `plan.md` §PHASE-08 VT-2
+  calls it *"its negative control"*, the Coverage table *"its R-32/R-3
+  negative control"*, and `design.md` §9 *"a negative control over an inline
+  string"* — none names it, and *Test names are commitments* binds a name
+  §9 or `canon-delta.md` gives. PHASE-07's controls were each named in the
+  plan; PHASE-12 shipped unnamed cases that §Open now carries for audit.
+  Folding VT-2 into VT-1 as private asserts would conflate their mutations
+  (M-2..M-5 would red VT-1 for VT-2's reason, and VT-1's red-first would
+  fail on two causes). *Recommendation:* a separate `#[test]` named
+  `a_requirement_id_counts_only_alone_in_a_heading_outside_a_fence`, added to
+  §9's kit tier and the plan's Coverage row by the orchestrator in
+  `plan-log.md`, as PHASE-07's VT-8 was. **Blocks** only the name in task 1's
+  VT-2 box: the executor may write the test under the recommended name and
+  rename it if the user chooses another.
+- **Observation — the `SPEC-001/` prefix is spelled in the test.** No public
+  constant carries it (`render`'s `refusal_line` formats it inline in a
+  binary crate). D-1 names it once in `coverage.rs`; the binary tier's
+  `a_line_names` cases are what hold the report's spelling, so a drift in
+  `render` reds there, not here.
+- **Observation — `checking.md` will cite ids only `canon-delta.md` holds**
+  (`SPEC-001/R-59`, `SPEC-004/R-11..R-13`; D-7). Harmless while the specs are
+  not shipped, and the delta fixes the numbers; promotion at audit must keep
+  them. Task 9 adds the §Open row.
+- **Observation — PHASE-07's forward is confirmed** (A-V1): VT-1 is red on
+  the four scheduling ids only.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
