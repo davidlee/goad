@@ -44,7 +44,13 @@ directory (OQ-1, settled).
   and its `ingress.path` row), `checking.md`, and the examples' configs and
   READMEs that say to run goad from the example's directory.
 - `exercisers/demo.toml` (its `command` and socket path become relative to
-  `exercisers/`) and the `justfile` recipes that name the demo's socket.
+  `exercisers/`), the `justfile` recipe and comment that name the demo's
+  socket, and `.gitignore`'s entries for it.
+- `exercisers/typescript/README.md`, whose config is repo-root relative and
+  whose prose states today's rule, and `exercisers/shell/backend.sh`'s header,
+  which quotes the demo's command.
+- `docs/memory/path-flake-ref-breaks-on-demo-socket.md`, which names the
+  socket's location.
 - SATAN's configs in `~/satan-corpus/goad/` are outside this repository. They
   can drop their absolute paths once this ships; that is their owner's edit.
 
@@ -76,10 +82,11 @@ directory (OQ-1, settled).
 
 - **SPEC-001** — host/backend protocol: R-36 (argv, no shell), R-44 (a program
   the host cannot start is the configuration's side), §6.4 process transport.
-  Amended.
+  Amended: new R-60 (R-59 is slice 012's pending id), §6.4, §7.
 - **SPEC-003** — ingress: §6.1 says the socket path comes from the
-  configuration. Amended to say what a relative path is relative to (OQ-3).
-  R-4 covers a path that cannot be bound.
+  configuration. Amended to say what a relative path is relative to (OQ-3):
+  new R-17, §6.1, §7, §9. R-4 covers a path that cannot be bound, the
+  too-long one included.
 - **SPEC-004** — exit status. Checked: a spawn failure's status is unchanged.
   012's unpromoted SPEC-004 drafts are not cited (`docs/AGENTS.md`, *Canon
   that does not exist yet*).
