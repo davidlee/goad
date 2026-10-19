@@ -652,6 +652,20 @@ semantic protocol is identical across transports — SPEC-001 already says so.
   nothing, or for brief §10.1/§10.2 through a real process (FU-36). Both are held
   at other tiers today. If this slice rebuilds the failure matrix, add them.
 
+### 015 — a config travels with its backend
+
+From 012's walks (`docs/slices/012/walks.md` W0-6). **Tier 2** — it adds a
+rule to SPEC-001, which says nothing today about where a backend command
+runs. Opened 2026-10-19, beside 012, which is still open; its `kit/` edits
+wait for 012's PHASE-10.
+
+A relative path in `command` resolves against the directory goad was started
+in, so every config SATAN wrote uses absolute paths. The candidate fix is
+spawning the backend in the config file's directory. Argv is not rewritten:
+the relative path is usually an argument, and picking out which arguments are
+paths would be a guess. `docs/slices/015/slice-015.md` carries the open
+questions.
+
 ## v0.1.0 acceptance coverage
 
 Brief §21. Where each criterion is discharged.
@@ -710,6 +724,15 @@ sweep does not miss them, and points back at this section.
   an evaluation a person asked for, so pressing **Check now** mid-form replaces
   the form with no floor at all. Neither document says this; it is only visible
   from a slice holding both.
+  **Backends now rely on what any answer must keep.** A backend never learns
+  its view's `view_id`, so one that asks a sequence of questions, and every
+  router, knows which question an answer belongs to only because one view is
+  outstanding (SPEC-001/R-31) and an answer to a replaced one never reaches it
+  (R-32). The kit states the reliance (`protocol.md`, *Asking a sequence of
+  questions*). Suppression and deferral both keep it. An answer that keeps a
+  superseded view answerable, by stacking or restoring it, relaxes R-31 or
+  R-32 and misroutes those backends' answers without a refusal anywhere: it is
+  a protocol change, not a loop one. (012 `walks.md` W1-5.)
   *Recommendation:* the likeliest answer is a backend affordance, which makes
   this a protocol question rather than a loop one — so it lands wherever OQ-1's
   capability mechanism lands, not before. Not to be confused with **SPEC-001**
