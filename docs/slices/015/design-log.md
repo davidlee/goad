@@ -83,3 +83,11 @@ other, citing the finding id.
 - **Asked:** may the design agent decide everything except canon wording, which
   returns to the person before review? And start design now?
 - **Decided:** yes to both.
+
+### 2026-10-19 — canon wording, and promotion order
+
+- **Asked:** endorse `canon-delta.md`'s wording for SPEC-001 R-60 and §6.4,
+  and SPEC-003 R-17 and §6.1? Sequence this slice's promotion after 012's,
+  since R-60 follows 012's unpromoted R-59? Add a row to 012's owed list for
+  the old-rule text in 012's record? Then run the adversarial design review?
+- **Decided:** "yep, canon ok. make the edits, and run adv. review".

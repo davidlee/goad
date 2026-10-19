@@ -6,8 +6,13 @@ stated**, and why. Nothing here is applied mid-slice. It is applied at audit,
 with the person's explicit endorsement, and recorded in `audit.md`'s
 Reconciliation table.
 
-**Status:** proposed wording, awaiting the person's reading before design
-review (design grant, `design-log.md` 2026-10-19).
+**Status:** wording endorsed by the person before design review
+(`design-log.md` 2026-10-19, *canon wording*). Review may still change it;
+any change returns to the person.
+
+**Promote after slice 012.** R-60 skips R-59, which 012's unpromoted delta
+holds. Promoting this delta first would leave SPEC-001 with a gap until 012's
+audit fills it. 015's audit waits for 012's promotion, or says why not.
 
 Test names are `design.md` §9's; at audit each is re-pointed to the symbol that
 shipped. Nothing here cites a line number, and nothing here counts.

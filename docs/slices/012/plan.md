@@ -81,6 +81,13 @@ every one, so none is left to prose.
 - **Extend FU-5 and FU-7** in `docs/follow-ups.md` from `notes.md` §Open's
   rows, which name the shipped symbols (PHASE-04/VA-5, VA-7;
   PHASE-12/VA-7; PHASE-07/VA-4).
+- **Record slice 015's rule change as design drift.** 015 (SPEC-001 R-60,
+  SPEC-003 R-17, drafted in `docs/slices/015/canon-delta.md`) runs a backend
+  in its config file's directory and resolves a relative `ingress.path`
+  there. This slice's `design.md` §5.2.1 (F-36) and its walk procedure state
+  the old rule, start-directory relative. Audit lists that under *Design
+  drift not reconciled*, not as a defect. Promote 012's delta first: R-60
+  follows this slice's R-59.
 - **Disposition every other §Open candidate** at close.
 
 **Test names are commitments.** `design.md` §9 and `canon-delta.md` name the
