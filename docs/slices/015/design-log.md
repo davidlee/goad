@@ -91,3 +91,20 @@ other, citing the finding id.
   since R-60 follows 012's unpromoted R-59? Add a row to 012's owed list for
   the old-rule text in 012's record? Then run the adversarial design review?
 - **Decided:** "yep, canon ok. make the edits, and run adv. review".
+
+### 2026-10-19 — design review round 1 dispositions
+
+- **Asked:** the orchestrator's proposed dispositions for `review-design.md`
+  F-1..F-17, after re-running F-1 and F-3's spikes. In particular: drop `arg0`
+  so a relative program receives the joined path as its name (F-1, rewords
+  R-60); set the child's `PWD` to its working directory (F-7, design not
+  canon); run 015 on its own branch and merge code and kit text together after
+  012's PHASE-10 (F-10).
+- **Decided:** "confirmed". On F-10: "i'd merge this slice back to main if it
+  ships while 12 is still open & not progressed". So code and kit text land
+  together in one merge, and the merge does not wait on 012's PHASE-10 when
+  012 has not moved. Only a PHASE-10 actually in flight is coordinated with.
+- **Consequence, flagged to the person:** if 015 closes before 012, it must
+  promote its delta at its own audit (a slice does not close holding a
+  draft), and SPEC-001 then carries R-60 with no R-59 until 012 promotes. The
+  2026-10-19 *promotion order* entry stands as the preference, not a gate.
