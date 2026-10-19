@@ -269,7 +269,7 @@ This answers the view under *Show a choice*:
   "view_id": "2026-08-23T04:12:00Z#3",
   "response": {
     "option": "later",
-    "values": {"minutes": 20, "note": "back after coffee", "done": false,
+    "values": {"minutes": 20.0, "note": "back after coffee", "done": false,
                "resume": "2026-08-23T05:00:00+10:00", "mood": "up"}
   }
 }
@@ -284,9 +284,12 @@ question; a new view asks the next one.
 |---|---|
 | `boolean` | a JSON boolean |
 | `text` | a JSON string |
-| `number` | a JSON number |
+| `number` | a JSON number, always written with a fraction: twenty is `20.0` |
 | `choice` | the chosen alternative's id, a JSON string |
 | `datetime` | an RFC 3339 date-time string with an offset |
+
+Read a number as a number, never only as an integer: a parser that accepts
+only integers refuses every number goad sends, untouched `0.0` included.
 
 ### SPEC-001/R-58 — values for exactly the drawn fields of the chosen option
 
@@ -320,3 +323,18 @@ closes it.
 ### SPEC-001/R-32 — an answer to a stale view never reaches you
 
 The host refuses it, and your backend is not run.
+
+### Asking a sequence of questions
+
+A respond names the view it answers only by its `view_id`, which the host
+minted and you first see in that respond (`SPEC-001/R-30`). It carries no copy
+of the view. To know which question an answer belongs to, do one of two
+things:
+
+- **put the question in the option ids**: `q2:named` and `q2:skip`, so the
+  option alone says which question was answered;
+- **keep the current question in your own state**, and move it on with each
+  view you send. Every respond answers the last view you sent, because only
+  one question is outstanding (`SPEC-001/R-31`) and an answer to a replaced
+  one never reaches you (`SPEC-001/R-32`). The Downloads triage example
+  works this way, with its queue.
