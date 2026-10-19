@@ -35,8 +35,8 @@ and the kit's prose, then the exercisers and the person's run.
   that change makes false.
 - **PHASE-03 — the checker's pins, and the kit's prose.** The `PATH` pin and
   the argv-form pin on `goad-check`'s built-binary tier; `running.md`,
-  `checking.md`, `events.md`, the example READMEs and `watch.sh` state the new
-  rule (AC-3's kit half).
+  `checking.md`, `events.md`, the example configs' comments, the example
+  READMEs and `watch.sh` state the new rule (AC-3's kit half).
 - **PHASE-04 — the exercisers, the repository, and the person's run.**
   `exercisers/demo.toml`, the `justfile`, `.gitignore`, `backend.sh`'s header,
   the memory note; the stale root sockets listed for the person; a person runs
@@ -56,13 +56,16 @@ PHASE-04/VA-4 checks that `notes.md` §Open carries each one as a box.
   dispositions*). Promotion is a commit on `slice-015`, so canon reaches `main`
   in the same merge as the code.
 - **Re-point the §7 test citations** in both rows to the symbols that
-  shipped, and confirm each resolves (`canon-delta.md` says names are
-  `design.md` §9's until audit).
+  shipped, from the renames the phase sheets record, and confirm each
+  resolves (`canon-delta.md` says names are `design.md` §9's until audit).
 - **The kit's citation of the new ids.** No phase writes `R-60` or `R-17`
   into `kit/` (PHASE-03 Notes). Once promoted, audit decides with the person
   whether `running.md` and `events.md` cite them.
 - **Record the person's run** (PHASE-04/VH-1) in `audit.md` §Evidence, naming
-  what was observed.
+  what was observed. **If any repair from the audit's code review touches
+  `goad_shell::config` or the spawn** (`backend::process`, or
+  `BackendError::Spawn`), PHASE-04/VH-1 is run again on the repaired build
+  before the merge, and §Evidence records that run, not the earlier one.
 - **Slice 012's drift row** is already in `docs/slices/012/plan.md` §Owed
   (*Record slice 015's rule change as design drift*). 015's audit names the
   hand-off (`design.md` R2); it does not edit 012's record.
@@ -74,10 +77,14 @@ PHASE-04/VA-4 checks that `notes.md` §Open carries each one as a box.
   `goad-demo.sock` pair — ticked by the person after the merge.
 - **Disposition every other §Open candidate** at close.
 
-**Test names are commitments.** `design.md` §9 and `canon-delta.md` name the
-cases. A phase that ships a case under another name or in another file updates
-both in the same commit and says so in its phase sheet. Canon keeps no
-citation of them until audit promotes.
+**Test names are commitments, and no phase edits `canon-delta.md`.**
+`design.md` §9 and `canon-delta.md` name the cases. The delta's wording is the
+person's endorsed text, and any change to it returns to them (its **Status**
+line); its preamble already assigns re-pointing to audit. So a phase that
+ships a case under another name or in another file records the rename in its
+phase sheet in `notes.md` — the name §9 gives, the symbol shipped, the file —
+and edits neither document. Audit re-points the citations from those records
+(§Owed). `design.md` is a record of intent and is not edited either.
 
 ### Branch and worktree
 
@@ -96,9 +103,8 @@ slice-015 ●─PHASE-01─PHASE-02─PHASE-03─PHASE-04─audit─close
 
 - **Create**, from the main checkout, once the plan is accepted:
   `git worktree add .claude/worktrees/slice-015 -b slice-015`. Every 015
-  commit after that — phase work, phase sheets, `notes.md`, any test-name
-  edit to `design.md` §9 or `canon-delta.md`, audit, promotion, close — is
-  made in that worktree. Nothing of 015's is committed on `main` until the
+  commit after that — phase work, phase sheets, `notes.md`, audit,
+  promotion, close — is made in that worktree. Nothing of 015's is committed on `main` until the
   merge.
 - **Each agent prints `git -C .claude/worktrees/slice-015 log -1 --oneline`
   first** and checks it is the previous phase's last commit
@@ -110,12 +116,21 @@ slice-015 ●─PHASE-01─PHASE-02─PHASE-03─PHASE-04─audit─close
   `git worktree add`. A mutation is applied by copying the file to the
   scratchpad and copying it back, and `git status` is clean after each
   restore.
+- **Slice 012's PHASE-10 writes what 015 writes.** Its Surfaces are `kit/`,
+  `crates/goad-check/src` and `crates/goad-check/tests/`; 015 writes
+  `crates/goad-check/tests/` in PHASE-01 (`tagged.rs`), PHASE-02
+  (`examples.rs`, `main.rs`, `tree.rs`, `coverage.rs`) and PHASE-03
+  (`run.rs`, `process.rs`), and `kit/` in PHASE-03. So **PHASE-01, PHASE-02
+  and PHASE-03 each start by reading slice 012's `notes.md` §Status on
+  `main`**; if PHASE-10 is `in progress`, STOP and consult the person.
 - **Staying current.** Before PHASE-03 and before the merge, `git merge main`
-  inside the worktree, resolve, and run the gate there. Slice 012's PHASE-10
-  writes the same kit files as PHASE-03; if it has landed, the conflict is
-  resolved in favour of 012's text with 015's rule applied to it.
+  inside the worktree, resolve, and run the gate there. A conflict in kit
+  prose is resolved in favour of 012's text with 015's rule applied to it. A
+  conflict in a test file keeps both sides' cases; where both sides changed
+  the same function, STOP and consult the person.
 - **The merge**, at close, after the audit's code review holds no open
-  blocker, the delta is promoted and AC-4 is recorded. First read slice 012's
+  blocker, the delta is promoted and AC-4 is recorded on the build being
+  merged (§Owed). First read slice 012's
   `notes.md` §Status on `main`: if PHASE-09 or PHASE-10 is `in progress`,
   stop and consult the person — a walk in flight reads the kit and runs the
   binaries, and PHASE-10 also writes the kit (`review-design.md` F-20).
@@ -170,13 +185,19 @@ test in PHASE-02 (D10).
 are disjoint by file but share `notes.md`, and PHASE-03 may merge `main`.
 
 **Size.** PHASE-02 is the largest: a small production change, the most new
-cases, and most of R-60's mutation table, each mutation an edit, a scoped
+cases, and most of the mutation table, each mutation an edit, a scoped
 test run, a record and a restore. It stays one phase because splitting the
 spawn from its error report would commit a spawn whose failures name the wrong
 path. If its session runs long, the checkpoint is after EX-3 (the goad-shell
 tier green) with `examples.rs` and D10 left; that is a `PARTIAL` commit, not a
 re-plan. PHASE-04 is light in tokens and long in wall time (it waits on a
 person).
+
+**Natural-red evidence** goes in the phase's sheet too, one row per case
+seen red: the case by name, the command, and **the assertion it failed on**.
+A case that reds for another reason than the one `design.md` §9's *red today
+because* column gives — a missing script where an inherited `PWD` was
+claimed — has not shown its red; fix the case's form and run it again.
 
 **Mutation evidence** goes in the phase's sheet in `notes.md`, under a
 **Mutation evidence** heading, one row per mutation: the edit (quoted), the
@@ -202,6 +223,7 @@ The mutations, by the row they hold. Each must red the cases named.
 | M8 | `arg0(&self.command.program)` added to the anchored spawn | `a_native_program_receives_its_anchored_path_as_its_name` only — the script case stays green, which is D5's point | 02 |
 | M9 | no `PWD` | `the_backend_s_pwd_names_its_working_directory` | 02 |
 | M10 | `Spawn`'s `working_directory` is `None` for a configured command | `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | 02 |
+| M13 | `Spawn`'s `Display` prints the parenthesis whatever the directory | `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` | 02 |
 | M11 | `executable` anchors every relative program, `/` or not | `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config` (`beside` lines); also `the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | 03 |
 | M12 | the argv form is given a working directory other than the caller's | `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | 03 |
 
@@ -214,8 +236,8 @@ committed.
 | AC | discharged by |
 |----|---------------|
 | AC-1 | PHASE-01/VT-1, VT-2, VT-3, VT-6 (the resolution, the executable table, the dangling-link pin, the directory-link value); PHASE-02/VT-1..VT-6 (every spawn case); PHASE-03/VT-1 (`PATH` pin); PHASE-04/VH-1 (through a link, by a person) |
-| AC-2 | PHASE-02/VT-8 (the kit examples, checker started outside them); PHASE-03/VT-2 (argv form) and VA-1 (`checking.md` states both) |
-| AC-3 | kit half: PHASE-03/VA-1, VA-2; canon half: **audit**, by promoting `canon-delta.md` (§Owed) |
+| AC-2 | PHASE-02/VT-8 (the kit examples, checker started outside them); PHASE-02/VT-9 (the argv form's spawn report names no directory); PHASE-03/VT-2 (argv form) and VA-1 (`checking.md` states both) |
+| AC-3 | kit half: PHASE-03/EX-6, VA-1, VA-2, VA-3; canon half: **audit**, by promoting `canon-delta.md` (§Owed) |
 | AC-4 | PHASE-04/VH-1; **recorded in `audit.md` §Evidence** |
 | AC-5 | PHASE-01/VT-1, VT-4, VT-5 (goad's listener; `goad-emit`'s binary and unit cases); PHASE-04/VH-1 (`just emit` reaches the demo) |
 
@@ -246,16 +268,20 @@ alike, wherever each was started.
 - `crates/goad-shell/tests/integration/ingress.rs` — the length pin.
 - `crates/goad-shell/tests/integration/working_directory.rs` (new) and its
   `mod` line in `crates/goad-shell/tests/integration/main.rs`.
+- `crates/goad-shell/src/error.rs` — `ConfigError::Read`'s doc only (EX-4).
+  PHASE-02 writes this file again for `BackendError::Spawn`; the phases run
+  in sequence.
 - `tests/support/scripting.rs` — `claim`'s doc only, if a helper this phase
   adds is held by `claim` (Notes).
-- `docs/slices/015/notes.md`; `design.md` §9 and `canon-delta.md` only for a
-  renamed case.
+- `docs/slices/015/notes.md`.
 
 **Entry**
 - EN-1 — `plan.md` accepted by the person; the worktree exists on
   `slice-015` at or after the acceptance commit (§Branch and worktree), and
   `git log -1` there was printed and checked.
 - EN-2 — `just check` exits 0 in the worktree.
+- EN-3 — slice 012's `notes.md` §Status on `main` read; PHASE-10 is not `in
+  progress` (§Branch and worktree).
 
 **Exit**
 - EX-1 — `Command` has `pub working_directory: Option<PathBuf>`;
@@ -270,7 +296,9 @@ alike, wherever each was started.
 - EX-4 — `Config::load` canonicalizes, reads the **canonical** path, and
   calls `Config::parse(&text, parent)`; a `canonicalize` failure is
   `ConfigError::Read`. A-1's impossible arm (no parent) is spelled without a
-  panic, as Notes say.
+  panic, as Notes say. `ConfigError::Read`'s doc says what it now carries: a
+  file missing or unreadable, a dangling link, and a path that names no file
+  in a directory (D4's tolerated case and A-1's arm).
 - EX-5 — `Config::parse(text, directory)` sets `working_directory:
   Some(directory)` by struct update over `from_argv`'s value, and anchors
   `ingress.path`. No other path in `Config` is start-directory relative.
@@ -322,7 +350,8 @@ alike, wherever each was started.
   `executable` returning `program` unchanged, `parse` ignoring the directory,
   `load` not canonicalizing — run and seen failing on the assertion, before
   the real body. VT-4 and VT-5 are red against today's code once
-  `Config::parse` has its new signature. Record each red in the sheet.
+  `Config::parse` has its new signature. Record each red, with the assertion
+  it failed on (§Sequencing, *Natural-red evidence*).
 - **A-1's spelling.** `canonical.parent()` is `Some` for any readable file.
   Spell the `None` arm as `ConfigError::Read` over an `io::Error` of kind
   `InvalidInput` saying the path names no file in a directory: total, no
@@ -350,13 +379,29 @@ alike, wherever each was started.
   `integration`, goad `renderer`). A shared helper in `scripting.rs` itself
   would be dead code in `event_loop_schedule`, which includes the file and
   would not use it. `claim`'s doc enumerates the helpers of its class and
-  currently **counts** them; adding one makes the count false, so rewrite
-  that sentence to name the held and unheld helpers, not number them
-  (`CLAUDE.md`, *never count*). `goad-emit`'s target does not include the
-  file; its new helper follows `exchange.rs`'s own `socket_path` precedent.
+  **counts** them, and the count is already short: run `claim`'s own grep
+  (`grep -rn 'process::id()' --include=*.rs .`) and rewrite the sentence to
+  **name** every helper of the class it finds, held and unheld — among them
+  `crates/goad-check/tests/kit/examples.rs::handout` and
+  `crates/goad/tests/binary/exit_codes.rs::scratch_config`, which it misses
+  today, and this slice's new ones — with no number (`CLAUDE.md`, *never
+  count*). Keep `claim`'s *One kind per helper* rule: a new kind's path is
+  checked against `marker`'s bare `goad-<name>-<pid>`, so a directory helper
+  ends its name with a non-digit suffix after the pid (as a socket's `.sock`
+  does) and can never equal a marker path. `goad-emit`'s target does not
+  include the file; its new helper follows `exchange.rs`'s own `socket_path`
+  precedent.
 - **The listener case and R5.** Before the red run, the case asserts no
-  `goad.sock` is in the test's working directory and removes any it finds;
-  the red run *will* bind there.
+  `goad.sock` and no `goad.sock.lock` is in the test's working directory and
+  removes any it finds, and it removes both again at its end: the red run
+  *will* bind there, and `ingress::bind` opens the lock before it binds
+  (T2-8), so the lock — the file `git status` lists (T2-S7) — is written even
+  when the bind is what the case is about. `listener::cleanup` removes both;
+  use it.
+- **`goad-emit`'s binary case asserts the exit status before it joins the
+  fake listener.** `exchange.rs::fake_listener` blocks in `accept`; in the
+  red run nothing connects at the config's directory, so a `join()` first
+  would hang the case instead of failing it. Join only after the status is 0.
 - **`goad-emit`'s binary case** sets `XDG_CONFIG_HOME` and `current_dir` on
   the child only (`Command::env`, `Command::current_dir`). `std::env::set_var`
   is disallowed by `clippy.toml`, and process-global mutation is the reason.
@@ -364,8 +409,8 @@ alike, wherever each was started.
   otherwise name the person's own config.
 - **`tagged.rs::check`** gains the Markdown file's directory; its synthetic
   cases pass any absolute directory — `parse` never touches the filesystem.
-- **`config.rs`'s tests module stays last** in the file (the boundary
-  structure check).
+- **`config.rs`'s tests module stays last** in the file: an item after it
+  fails clippy's `items_after_test_module` under the gate's `-D warnings`.
 - STOP if the anchored `ingress.path` changes any case in §9's *unaffected*
   list, or if any caller outside T2-6's list turns up.
 
@@ -398,11 +443,12 @@ and a spawn failure names where the program was looked for.
 - `crates/goad-check/tests/kit/examples.rs` (`run_checker` and its doc, the
   module doc), `crates/goad-check/tests/kit/main.rs` (module doc),
   `crates/goad-check/tests/kit/tree.rs` (`files`' doc).
-- `docs/slices/015/notes.md`; `design.md` §9 and `canon-delta.md` only for a
-  renamed case.
+- `docs/slices/015/notes.md`.
 
 **Entry**
 - EN-1 — PHASE-01 done; `git log -1` in the worktree is its last commit.
+- EN-2 — slice 012's `notes.md` §Status on `main` read; PHASE-10 is not `in
+  progress` (§Branch and worktree).
 
 **Exit**
 - EX-1 — `exchange` builds `Command::new(&executable)` from
@@ -427,7 +473,7 @@ and a spawn failure names where the program was looked for.
 - EX-5 — AC-2: `run_checker` starts the checker in the hand-out **root**
   with `--config example/config.toml` and `--event example/events/…`; the
   test docs that described starting in the copy are true of the new start.
-- EX-6 — M3's PHASE-02 half and M6–M10 run and recorded.
+- EX-6 — M3's PHASE-02 half, M6–M10 and M13 run and recorded.
 
 **Verification**
 - VT-1 — `a_relative_argument_resolves_beside_the_config_from_another_directory`:
@@ -442,8 +488,12 @@ and a spawn failure names where the program was looked for.
 - VT-4 — `a_native_program_receives_its_anchored_path_as_its_name`: a copy of
   the devshell's `sh` beside the config as `shell`; `["./shell", "-c", …]`
   logs `$0`, which is `<canonical anchor>/shell`.
-- VT-5 — `the_backend_s_pwd_names_its_working_directory`: a `python3` backend
-  logs `os.environ["PWD"]`; it is the canonical config directory.
+- VT-5 — `the_backend_s_pwd_names_its_working_directory`: a config loaded
+  with `Config::load` whose `command` is `["python3", "-c", <body>, <log>]` —
+  no relative path in it, so against PHASE-01's tree the backend runs, and
+  the case reds on the `PWD` assertion because `PWD` is inherited from the
+  test process (`design.md` §9). The body answers conformingly and logs
+  `os.environ["PWD"]`; it is the canonical config directory.
 - VT-6 — `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for`:
   `["./missing.sh"]` gives `Spawn` with the anchored `executable`, the anchor
   as `working_directory`, and a `Display` containing both.
@@ -453,6 +503,11 @@ and a spawn failure names where the program was looked for.
 - VT-8 — `examples.rs::each_shipped_example_is_accepted_by_the_checker` and
   `::downloads_triage_moves_the_file_it_was_asked_about` green started from
   the root; seen red against the spawn before EX-1.
+- VT-9 — `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable`:
+  a `Spawn` with `working_directory: None` (the argv form's) has a `Display`
+  naming the executable and containing no `(in `. Seen red against a
+  `Display` that prints the parenthesis whatever the directory; M13 reds it.
+  Not a §9 name: recorded in the sheet as an addition, for audit.
 - VA-1 — `transport.rs`'s and `failure_matrix.rs`' spawn cases still assert
   what they asserted (`NotFound`; the configuration's side); only the match
   shape changed.
@@ -460,7 +515,8 @@ and a spawn failure names where the program was looked for.
 **Notes for the implementer**
 - **Order.** Write VT-1..VT-6 and change VT-7's and VT-8's tests first; run
   them against PHASE-01's tree, where the spawn ignores the working
-  directory, and record the reds. VT-6 needs the new `Spawn` shape to
+  directory, and record each red with the assertion it failed on
+  (§Sequencing, *Natural-red evidence*). VT-6 needs the new `Spawn` shape to
   compile: change `error.rs` and its sites first with `process.rs` filling
   `executable` from the program as written and `working_directory: None`,
   see VT-6 red, then do EX-1.
@@ -516,17 +572,22 @@ states the new rule with no *make every path absolute* advice.
   `reference/checking.md` (the relative-path paragraph, and the argv form's
   rule, OQ-5), `reference/events.md` (`goad-emit`'s socket rule and its
   `--socket ./goad.sock` example).
+- `kit/skills/goad-backend/examples/{breadcrumbs,downloads-triage,focus-check}/config.toml`
+  — the opening comment only (*relative to this directory: run goad and
+  goad-check from here*); no value changes (`research.md` T2-11).
 - `kit/skills/goad-backend/examples/{breadcrumbs,downloads-triage,focus-check}/README.md`,
-  `examples/downloads-triage/watch.sh` (header), and
+  including each README's `toml goad:config` fence, which quotes its
+  `config.toml` and its comment verbatim; `examples/downloads-triage/watch.sh`
+  (header), and
   `examples/breadcrumbs/chpwd.zsh` (header) only if VA-2 classes it stale.
-- `docs/slices/015/notes.md`; `design.md` §9 and `canon-delta.md` only for a
-  renamed case.
+- `docs/slices/015/notes.md`.
 
 **Entry**
 - EN-1 — PHASE-02 done; `git log -1` checked.
 - EN-2 — `main` merged into the worktree and the gate green (§Branch and
   worktree), so the kit is edited on top of whatever 012 has landed. If 012's
-  PHASE-10 is `in progress` on `main`, STOP: it is a writer of these files.
+  PHASE-10 is `in progress` on `main`, STOP and consult the person: it is a
+  writer of these files.
 
 **Exit**
 - EX-1 — `run.rs` holds the pins VT-1 and VT-2; M11 and M12 run and
@@ -550,6 +611,11 @@ states the new rule with no *make every path absolute* advice.
   installed kit is read-only (`design.md` §5.5, F-8). *Run goad from this
   directory* and *make both absolute* are gone; a copy needs no edit to its
   config. `watch.sh`'s header is true from any directory.
+- EX-6 — each example `config.toml`'s opening comment states the new rule —
+  `command` and the socket are relative to this file's directory, from
+  wherever goad or `goad-check` is started — and no longer says *run … from
+  here*; each README's `goad:config` fence quotes its `config.toml` as the
+  file now reads, comment included.
 
 **Verification**
 - VT-1 — `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`,
@@ -567,9 +633,14 @@ states the new rule with no *make every path absolute* advice.
   over every edited fence, `standalone.rs::nothing_in_the_kit_names_a_path_outside_it`,
   and `examples.rs`.
 - VA-1 — AC-3's kit half: `git grep -n -i 'absolute\|started in\|working
-  directory\|from this directory' -- kit` recorded in the sheet, each hit
-  classed as true under the new rule or repaired. No hit advises making a
-  path absolute to work around where goad was started.
+  directory\|from this directory\|from here\|relative to this directory\|run
+  goad' -- kit` recorded in the sheet, each hit classed as true under the new
+  rule or repaired. Checked against today's text, the pattern matches each
+  example `config.toml`'s comment and each README fence's copy of it (`relative
+  to this directory`, `from here`). No hit advises making a path absolute,
+  or running from a directory, to work around where goad was started.
+- VA-3 — each README's `goad:config` fence is byte-identical to its
+  `config.toml` (a `diff` of the fence body against the file, recorded).
 - VA-2 — `chpwd.zsh`'s header (*add `--socket` with the absolute path*) is
   classed: `goad-emit`'s `--socket` is used as given, so the advice may
   still be true; recorded either way.
@@ -609,13 +680,16 @@ seen it.
 - `exercisers/demo.toml` — `command`, `[ingress] path`, and the comments
   naming the socket or the old rule (D9).
 - `exercisers/shell/backend.sh` — header only.
-- `justfile` — `emit`'s `--socket`, and the `package` comment naming the
-  socket's location.
+- `justfile` — `emit`'s `--socket`, and the `package` comment's sentence
+  on what a `path:` copy meets in the checkout.
 - `.gitignore` — the demo entries (`/exercisers/goad-demo.sock`,
   `/exercisers/goad-demo.sock.lock` replace the root pair) and the
   kit-example paragraph's reason (F-9).
 - `docs/memory/path-flake-ref-breaks-on-demo-socket.md` — the socket's
   location and the general form's wording; its conclusion stands (X-4).
+- `crates/goad-shell/tests/integration/round_trip.rs` — `shell_example`'s
+  doc only, which says its argv is the one `demo.toml` names and runs the
+  exerciser exactly as the demo does; after EX-1 neither holds as written.
 - `docs/slices/015/notes.md` (including §Owed and §Open).
 
 **Entry**
@@ -627,8 +701,10 @@ seen it.
   and `nc` lines name the socket by a path that works from the repository
   root, or say where they are run from).
 - EX-2 — `justfile` `emit` passes `--socket exercisers/goad-demo.sock`; the
-  `package` comment names `exercisers/goad-demo.sock`. `just -n check` prints
-  the same sequence as before (the gate recipe is not touched).
+  `package` comment names `exercisers/goad-demo.sock` and the kit examples'
+  `goad.sock` files, which break a `path:` copy the same way, and says
+  `.claude/worktrees/` holds gitignored worktrees, with no number. `just -n
+  check` prints the same sequence as before (the gate recipe is not touched).
 - EX-3 — `.gitignore` as Surfaces say; its comments give the new rule's
   reason.
 - EX-4 — `backend.sh`'s header quotes the demo's new argv.
@@ -636,15 +712,22 @@ seen it.
   socket path resolves against the config file's directory.
 - EX-6 — `notes.md` §Owed's box names which checkouts hold a stale root
   `goad-demo.sock` pair (VA-3); the person deletes them after the merge.
+- EX-7 — `round_trip.rs::shell_example`'s doc is true of the new demo: what
+  it shares with `demo.toml` (`bash` and the script) and what it does not
+  (the working directory, an absolute script path).
 
 **Verification**
-- VA-1 — `git grep -n 'goad-demo.sock' -- ':!docs/slices'` and `git grep -n
-  -i 'working directory\|started in\|repository root' -- exercisers justfile
-  .gitignore docs/memory/path-flake-ref-breaks-on-demo-socket.md` recorded,
-  each hit classed.
+- VA-1 — `git grep -n 'demo.toml\|goad-demo.sock\|shell/backend.sh' --
+  ':!docs/slices'`, which reaches `crates/` for every claim about the demo's
+  argv or socket, and `git grep -n -i 'working directory\|started in\|repository
+  root' -- exercisers justfile .gitignore
+  docs/memory/path-flake-ref-breaks-on-demo-socket.md`, recorded, each hit
+  classed. (`crates/goad-check/src/args.rs` `DEFAULT_TIMEOUT`'s doc cites
+  `demo.toml`'s timeout and stays true.)
 - VA-2 — every case named in `design.md` §9 and in `canon-delta.md`'s §7
   rows resolves to a test in the tree (`cargo test -- --list` per target, or
-  a grep for each `fn` name); any rename was made in both documents.
+  a grep for each `fn` name), or to a rename a phase sheet records; the list
+  of renames is gathered in the sheet for audit's re-pointing.
 - VA-3 — the checkouts holding a root `goad-demo.sock` or
   `goad-demo.sock.lock` listed in §Owed: the main checkout, and each path in
   `git worktree list`.
@@ -654,12 +737,15 @@ seen it.
   person's shell is nushell; the hand-over gives the commands in its syntax,
   pasted in full, not as a pointer):
   1. from `/tmp`, start goad on `<worktree>/exercisers/demo.toml` by its
-     absolute path; a view appears;
-  2. again through a link to it (`/tmp/goad-015-demo.toml →
-     <worktree>/exercisers/demo.toml`); a view appears;
+     absolute path; a view appears; **quit it** — both runs bind the same
+     anchored `exercisers/goad-demo.sock`, and a second host on a live one is
+     refused (SPEC-003/R-3);
+  2. from `/tmp`, start goad through a link to it (`/tmp/goad-015-demo.toml →
+     <worktree>/exercisers/demo.toml`); a view appears; leave it running;
   3. from the worktree root, `just emit reddit-watcher reddit-opened` reaches
-     the running host (AC-5);
-  4. `exercisers/goad-demo.sock` exists and the root has no new socket.
+     the host started in step 2 (AC-5);
+  4. `exercisers/goad-demo.sock` exists and the root has no new socket; then
+     quit the host.
   What was seen is recorded in the sheet, for audit's §Evidence.
 
 **Notes for the implementer**
@@ -667,7 +753,5 @@ seen it.
   --manifest-path <worktree>/Cargo.toml -p goad -- <worktree>/exercisers/demo.toml`
   from `/tmp` is the run; the GUI needs the dev shell's `LD_LIBRARY_PATH` and
   `FONTCONFIG_FILE`. The person launches it; an agent does not.
-- The `justfile`'s `package` comment also counts the gitignored worktrees in
-  a sentence this phase edits; name them or drop the number while there.
 - Do not edit `docs/brief.md`, closed slices, or slice 012's record.
 - STOP if the person's run shows anything §9 did not predict.
