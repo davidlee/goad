@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-19 |
-| PHASE-02 | in progress | 2026-10-19 |
+| PHASE-02 | done | 2026-10-19 |
 | PHASE-03 | pending | 2026-10-19 |
 | PHASE-04 | pending | 2026-10-19 |
 
@@ -489,9 +489,9 @@ VA-1. Names are commitments (`design.md` §9); a rename goes in *Renames*.
 - [x] D10's README; VT-7 green. VT-8 green; test docs true (EX-5).
 - [x] VT-9, VT-10 (each seen red as the plan says).
 - [x] Refactor step.
-- [ ] M3 (02 half), M6–M10, M13, M14 recorded; `git status` clean after each.
-- [ ] VA-1 recorded.
-- [ ] `just check` exits 0; §Status PHASE-02 `done`; §Harvest; commit.
+- [x] M3 (02 half), M6–M10, M13, M14 recorded; `git status` clean after each.
+- [x] VA-1 recorded.
+- [x] `just check` exits 0; §Status PHASE-02 `done`; §Harvest; commit.
 
 **Natural-red evidence**
 
@@ -512,14 +512,14 @@ back; `git status` clean after each. Not compiled = not evidence.
 
 | id | edit (behaviour removed) | must red | command | compiled? | redded (name · assertion) | restore green? |
 |---|---|---|---|---|---|---|
-| M3 (02 half) | `load` anchors at the path's parent as given | `a_linked_config_runs_its_backend_beside_the_target` (the decoy answers) | | | | |
-| M6 | no `current_dir` (`PWD` still set) | `a_relative_argument_resolves_beside_the_config_from_another_directory`; `a_linked_config_runs_its_backend_beside_the_target`; `examples.rs::each_shipped_example_is_accepted_by_the_checker` | | | | |
-| M7 | the platform's route: `Command::new(&self.command.program)` with `current_dir` | `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` (`$0` relative); `a_native_program_receives_its_anchored_path_as_its_name` | | | | |
-| M8 | `arg0(&self.command.program)` added to the anchored spawn | `a_native_program_receives_its_anchored_path_as_its_name` **only** — the script case stays green (D5's point; record that it stayed green) | | | | |
-| M9 | no `PWD` | `the_backend_s_pwd_names_its_working_directory` | | | | |
-| M10 | `Spawn`'s `working_directory` is `None` for a configured command | `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | | | | |
-| M13 | `Spawn`'s `Display` prints the parenthesis whatever the directory | `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` | | | | |
-| M14 | the spawn fills `Spawn`'s `working_directory` from `current_dir()` for a command with none | `transport.rs::a_command_that_does_not_exist_fails_to_spawn` | | | | |
+| M3 (02 half) | `load` anchors at the path's parent as given | `a_linked_config_runs_its_backend_beside_the_target` (the decoy answers) | scratchpad `mutate.sh`: copy, edit, `cargo test -p goad-shell --no-fail-fast` + `cargo test -p goad-check --test kit --no-fail-fast -- examples::`, copy back; `config.rs` `canonical.parent()` → `path.parent()` | yes | `a_linked_config_runs_its_backend_beside_the_target` · `answered` left `{"view":null,"next_check":"1 minute"}` (the decoy's) vs `{"view":null}`; also PHASE-01's `a_config_reached_through_a_linked_directory_is_anchored_at_the_target` · `working_directory` `…/link` vs `…/real` | yes; restore byte-identical, `git status` clean |
+| M6 | no `current_dir` (`PWD` still set) | `a_relative_argument_resolves_beside_the_config_from_another_directory`; `a_linked_config_runs_its_backend_beside_the_target`; `examples.rs::each_shipped_example_is_accepted_by_the_checker` | same; `command.current_dir(directory).env("PWD", directory)` → `command.env("PWD", directory)` | yes | VT-1, VT-2 · *the backend must answer*: `exited with status 127`; `each_shipped_example_is_accepted_by_the_checker` · breadcrumbs, downloads-triage, focus-check `exit 1`; beyond the required: `downloads_triage_moves_the_file_it_was_asked_about` (`code_of` 1), VT-3 (`pwd -P` line is the crate dir), VT-7 (`quiet.failure`) | yes; restore byte-identical, `git status` clean |
+| M7 | the platform's route: `Command::new(&self.command.program)` with `current_dir` | `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` (`$0` relative); `a_native_program_receives_its_anchored_path_as_its_name` | same; `Command::new(&executable)` → `Command::new(&self.command.program)` | yes | VT-3 · log's `$0` line `./backend.sh` vs `<anchor>/backend.sh`; VT-4 · `./shell` vs `<anchor>/shell`. Nothing else | yes; restore byte-identical, `git status` clean |
+| M8 | `arg0(&self.command.program)` added to the anchored spawn | `a_native_program_receives_its_anchored_path_as_its_name` **only** — the script case stays green (D5's point; record that it stayed green) | same; `command.arg0(&self.command.program);` after `Command::new(&executable)` | yes | VT-4 only · `./shell` vs `<anchor>/shell`. **VT-3 (the script) stayed green**: 103 passed, 1 failed | yes; restore byte-identical, `git status` clean |
+| M9 | no `PWD` | `the_backend_s_pwd_names_its_working_directory` | same; `.env("PWD", directory)` dropped | yes | VT-5 only · `PWD` left the worktree root (inherited) vs `<anchor>` | yes; restore byte-identical, `git status` clean |
+| M10 | `Spawn`'s `working_directory` is `None` for a configured command | `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | same; `working_directory: self.command.working_directory.clone()` → `None` | yes | VT-6 only · `working_directory` left `None` vs `Some(<anchor>)` | yes; restore byte-identical, `git status` clean |
+| M13 | `Spawn`'s `Display` prints the parenthesis whatever the directory | `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` | same; the `if let Some` replaced by an unconditional ` (in {})` over `working_directory` or an empty path | yes | VT-9 only · `… ./backend.sh (in ): refused` vs `… ./backend.sh: refused` | yes; restore byte-identical, `git status` clean |
+| M14 | the spawn fills `Spawn`'s `working_directory` from `current_dir()` for a command with none | `transport.rs::a_command_that_does_not_exist_fails_to_spawn` | same; `.or_else(\|\| std::env::current_dir().ok())` on the clone | yes | VT-10 only · `working_directory` left `Some(<crate dir>)` vs `None`. **Red: `review-plan.md` F-15 holds** | yes; restore byte-identical, `git status` clean |
 
 **Renames / additions** — §9's name · symbol shipped · file.
 - VT-9 is an addition (not in §9): `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable`.
@@ -559,6 +559,20 @@ back; `git status` clean after each. Not compiled = not evidence.
   `/anchor`), so both shapes are in that file's tests.
 
 **Findings**
+- **M14 reds VT-10**: `review-plan.md` F-15 is settled in code, not
+  contested.
+- **VA-1**: `transport.rs::a_command_that_does_not_exist_fails_to_spawn`
+  still asserts `NotFound` on the `Spawn`'s `source`;
+  `failure_matrix.rs::a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure`
+  still matches `Spawn` and the seed `next_check`; `error.rs`'s
+  `every_backend_error_names_a_requirement_and_a_side` holds R-44 and the
+  configuration's side; `table.rs`' T1 row still asserts the prefix
+  `backend could not be spawned: `. Only the match shape changed. Gate green.
+- M6 reds more than its row requires (VT-3's `pwd -P` line, VT-7, the triage
+  case): all consistent with *no `current_dir`*. M7–M10, M13, M14 each red
+  their named cases and nothing else.
+- No crate-directory litter after the red runs (`git status` clean; the
+  kit's hand-outs and the cases' directories are under `temp_dir()`).
 
 ## Owed
 
@@ -577,7 +591,7 @@ when.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-19 · PHASE-01 · see the PHASE-01 commit
+**Fresh as of:** 2026-10-19 · PHASE-02 · see the PHASE-02 commits
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -586,12 +600,24 @@ when.
 - Cases: `config.rs` VT-1/2/3, `working_directory.rs` (new target module),
   `startup.rs::listener` AC-5, `goad-emit` AC-5 (binary and unit),
   `ingress.rs` length pin. `claim`'s doc names its helpers, no count.
+- `ProcessBackend::exchange` spawns `Command::executable()` in the working
+  directory with `PWD` set; `BackendError::Spawn { executable,
+  working_directory, source }`, parenthesis only with a directory.
+- Cases: `working_directory.rs` spawn cases (VT-1..VT-6) and their
+  case-written backends (`logging_script`, `config_in`); `error.rs` VT-9
+  (an addition to §9); `transport.rs` VT-10. D10: the TypeScript README's
+  config is relative to its directory, `rooted_at_the_workspace` gone. AC-2:
+  `examples.rs::run_checker` starts in the hand-out root.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
 - `Path` equality ignores interior `.`; compare `OsStr` for byte claims
   (PHASE-01 Findings).
+- `arg0` reaches a native program and not a script — M8 reds VT-4 alone, VT-3
+  stays green (PHASE-02 mutation table): D5's premise, measured.
+- A spawn case's log lives inside its claimed `directory`; no second
+  claimed kind needed (PHASE-02 Decisions).
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
