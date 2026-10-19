@@ -1,6 +1,6 @@
 # Slice 015: a config travels with its backend
 
-**Stage:** scoping
+**Stage:** design
 **Tier:** 2 (full) — it adds a rule to SPEC-001, which states nothing today
 about where a backend command runs.
 **Depends on:** — for canon. Its `kit/` edits wait for slice 012's PHASE-10,
@@ -38,8 +38,13 @@ directory (OQ-1, settled).
   the config's directory is known, `Config::load`).
 - `goad-check`'s config form, which spawns as the host does and so inherits
   the change. Its argv form (`-- PROGRAM`) has no config file.
-- The kit's prose that states today's rule: `running.md` (*SPEC-001/R-36*;
-  `ingress.path` if OQ-3 brings it in) and `checking.md`.
+- `goad-emit`, which reads `ingress.path` through `Config::load` when
+  `--socket` is absent. Its command line does not change.
+- The kit's prose that states today's rule: `running.md` (*SPEC-001/R-36*,
+  and its `ingress.path` row), `checking.md`, and the examples' configs and
+  READMEs that say to run goad from the example's directory.
+- `exercisers/demo.toml` (its `command` and socket path become relative to
+  `exercisers/`) and the `justfile` recipes that name the demo's socket.
 - SATAN's configs in `~/satan-corpus/goad/` are outside this repository. They
   can drop their absolute paths once this ships; that is their owner's edit.
 
@@ -64,6 +69,8 @@ directory (OQ-1, settled).
   advice.
 - [ ] AC-4 — A person has run goad with a relative-path config, from a
   directory other than the config's, and seen a view.
+- [ ] AC-5 — A relative `ingress.path` names the same socket for goad and
+  for `goad-emit` without `--socket`, wherever each is started.
 
 ## Governing canon
 
@@ -71,7 +78,8 @@ directory (OQ-1, settled).
   the host cannot start is the configuration's side), §6.4 process transport.
   Amended.
 - **SPEC-003** — ingress: §6.1 says the socket path comes from the
-  configuration. Touched only if OQ-3 brings `ingress.path` in.
+  configuration. Amended to say what a relative path is relative to (OQ-3).
+  R-4 covers a path that cannot be bound.
 - **SPEC-004** — exit status. Checked: a spawn failure's status is unchanged.
   012's unpromoted SPEC-004 drafts are not cited (`docs/AGENTS.md`, *Canon
   that does not exist yet*).
@@ -91,19 +99,30 @@ directory (OQ-1, settled).
   (`./backend.py`) must mean the config's directory unambiguously. Rust's
   `Command::current_dir` leaves that case platform-specific, so the host
   likely resolves such a program itself.
-- OQ-2 — **Which directory when the config is a symbolic link?**
-  `~/.config/goad/config.toml` links to `router/config.toml`. The router
-  needs the target's directory; a link farm might want the link's.
-- OQ-3 — **`ingress.path` too?** It is relative to goad's start directory
-  today (`running.md`). One rule for every path in the file is more cohesive,
-  but a socket beside a config in a repository is not obviously wanted.
-- OQ-4 — **Compatibility.** A config that relies on goad's start directory
-  today, such as a relative path that works only because a service starts in
-  `$HOME`, changes meaning. Does anything rely on it? Is a note enough, or
-  does the old behaviour need a way back?
-- OQ-5 — **The argv form of `goad-check`.** It has no config file. Is its
-  working directory the caller's, as now? That seems right, but should be
-  stated.
+- ~~OQ-2 — **Which directory when the config is a symbolic link?**~~ **The
+  target's**: the config path is resolved, every link in it, and its parent
+  is the directory (`design-log.md` 2026-10-19, *a linked config*). The live
+  setup needs it: `~/.config/goad/config.toml` links to `router/config.toml`.
+  Cost: a config linked into `/nix/store` gives its backend a read-only
+  working directory; such a config already needs absolute paths.
+- ~~OQ-3 — **`ingress.path` too?**~~ **Yes** (`design-log.md` 2026-10-19,
+  *`ingress.path`*). The kit's examples already write `./goad.sock` beside the
+  config, and `goad-emit` reads the path through the same `Config::load`, so
+  one resolution there gives every binary one rule. Left for design: a
+  socket path's length limit (about 108 bytes), which the absolute form may
+  exceed where the relative one did not.
+- ~~OQ-4 — **Compatibility.**~~ **No way back** (`design-log.md` 2026-10-19,
+  *compatibility*). The one config in reach that relies on the old rule is
+  `exercisers/demo.toml`, and this slice repairs it. SATAN's configs are
+  absolute and the kit's examples are run from their own directory, so
+  neither changes meaning. The kit says the rule changed. Left for design:
+  which tests that spawn with relative paths relied on the old rule.
+- ~~OQ-5 — **The argv form of `goad-check`.**~~ **The caller's working
+  directory, as now** (`design-log.md` 2026-10-19, *`goad-check`'s argv
+  form*). With no config file there is no other candidate. No canon holds
+  `goad-check`'s command line, drafted or promoted (012's SPEC-004 draft is
+  its exit statuses), so the rule is stated in `checking.md`, which this
+  slice already edits.
 
 ## Summary
 
