@@ -95,13 +95,13 @@ one reaching the diagnostics pane gets, taken beside the bounds
 `diagnostics.rs` already states rather than added in passing.
 
 ### FU-5 — stratum-3 test helpers have no shared home
-**Raised by** 006, 007 (F-17, F-22), 010 · **cost** tier 1
+**Raised by** 006, 007 (F-17, F-22), 010, 015 (`notes.md` PHASE-01) · **cost** tier 1
 
 `claim` does not reach every helper that promises a unique temp path, and
-`claim`'s own doc, which counts them, is short: it predates the helpers in
-`crates/goad/tests/binary/exit_codes.rs` — `scratch_config` (006), which
-overwrites its file as it hands the path out, and `scratch_path` (010) beside
-it. `goad-emit` has two more: `tests/binary/exchange.rs`'s `socket_path`, and
+`claim`'s own doc, which counted them until 015, was short: it predated the
+helpers in `crates/goad/tests/binary/exit_codes.rs` — `scratch_config` (006),
+which overwrites its file as it hands the path out, and `scratch_path` (010)
+beside it. `goad-emit` has more: `tests/binary/exchange.rs`'s `socket_path`, and
 `src/main.rs`'s `config_home`, which is inside a `#[cfg(test)]` module in a
 production file and is **destructive** — it writes or removes `config.toml`
 under the directory as it hands it out, so two cases sharing a name have one
@@ -113,6 +113,10 @@ Same cause as the binary-tier helpers transcribed into both
 `goad-emit/tests/binary/exchange.rs` and `goad/tests/binary/process.rs` — the
 spawn, `code_of`, `stderr_of` and `stdout_of` —
 nothing at stratum 3 is shared and neither crate may depend on the other.
+015 added one more of the class, unheld for the same reason —
+`goad-emit`'s `tests/binary/exchange.rs` `config_home` — and `claim`'s doc now
+names the unheld by symbol rather than counting them, `goad-check`'s
+`tests/kit/examples.rs` `handout` among them.
 
 **Start from the grep, not from a list**: `claim`'s own doc carries the class
 and the grep that finds it (`process::id()`). The enumeration came up short
@@ -187,7 +191,7 @@ instrument, if the residue ever grows enough to be worth automating.
 feature, or a check holds it.
 
 ### FU-10 — citation discipline is enforced by nothing
-**Raised by** 003, 004, 007, 009 (#8), 010 (P1-b), 011 (`review-code.md` F-12) · **cost** the instrument is tier 2; the sweep is tier 1 with a judgement per site
+**Raised by** 003, 004, 007, 009 (#8), 010 (P1-b), 011 (`review-code.md` F-12), 015 (`review-code.md` F-11) · **cost** the instrument is tier 2; the sweep is tier 1 with a judgement per site
 
 Two halves, one cause. **The rule**:
 `docs/memory/cite-requirements-not-finding-ids.md` was settled at 001's audit
@@ -200,9 +204,11 @@ citing by `file.rs:NNN` (`fields.rs`, `error.rs`, `envelope.rs`,
 moved by that slice, in `crates/goad/src/controller.rs`'s module docs,
 `crates/goad/tests/event_loop_drain/main.rs`, `goad-emit`'s `exchange.rs` and
 `goad-shell`'s `ingress/mod.rs` — the grep `grep -rnE "\.rs:[0-9]" crates` is
-the enumeration, not a list here. Separately, nothing resolves a `docs/memory/` citation —
-`path-flake-ref-breaks-on-demo-socket.md` was cited by a plan and six phase
-briefs while not existing. And `CLAUDE.md`'s *cite by symbol* is held by no
+the enumeration, not a list here. 015 swept every file it touched to zero
+under that grep, and left the rest — `goad`'s `canonical.rs`, `view_model.rs`
+and `lib.rs` among them — as outside its surfaces. Separately, nothing
+resolves a `docs/memory/` citation — `path-flake-ref-breaks-on-demo-socket.md`
+was cited by a plan and six phase briefs while not existing. And `CLAUDE.md`'s *cite by symbol* is held by no
 gate step: the class regenerated **twice inside the commits that repaired it**,
 and both times a script caught what two careful readings had missed.
 
@@ -215,7 +221,7 @@ a runtime quirk** belongs in `docs/memory/` and is cited by file name.
 is zero.
 
 ### FU-11 — properties held by nothing, needing a harness rather than a case
-**Raised by** 003, 009 (#4, #10), 011 · **cost** tier 1 each, but each needs something a unit cannot do
+**Raised by** 003, 009 (#4, #10), 011, 015 (`design.md` D11) · **cost** tier 1 each, but each needs something a unit cannot do
 
 They share a shape — real, correct, and asserted by nothing:
 
@@ -237,6 +243,12 @@ They share a shape — real, correct, and asserted by nothing:
   comment. For the second, `a_flood_of_refusals_updates_the_window_once_per_interval_with_the_latest`
   reds a production interval shorter than about 0.85 s against the 1 s mirror;
   between that and the mirror, the value is held by review.
+- **`goad`'s own `main.rs::start` hands `config.backend.command` to the
+  spawn.** SPEC-001/R-60 is held through `Config::load` and `ProcessBackend`
+  in `goad-shell`'s integration tier and through the built `goad-check`,
+  which runs the same path; that `goad`'s binary does too is held by review
+  and by a person's run (015 AC-4). A binary-tier `goad` case would reach a
+  window before it reached the spawn.
 - **The break-and-revert criteria are one-shot experiments.** Each established
   that an instrument fails when the thing it holds is removed, and each was
   reverted. The *necessity* argument lives in prose — `SPEC-002` §7 R-4 and
@@ -355,6 +367,14 @@ document. The shape is the host's repair, plus one binary-tier case on
 **Dead when** `goad-emit --help > /dev/full` exits non-zero with a line on
 standard error, held by a case — naturally inside the slice that kills FU-42.
 
+**Condition met, not struck** (re-verified at 015's close, which touched
+`goad-emit`'s `main.rs`): `goad-emit --help > /dev/full` exits 2 with *the
+answer could not be written to standard output* on standard error — `answer`
+now writes through `try_line_to` — and
+`exchange.rs::an_answer_that_cannot_be_written_exits_2` holds it. Slice 012
+PHASE-03 did it (`a02165b`), ahead of FU-42's governance; 012's close strikes
+the row with the requirement that governs it.
+
 ### FU-45 — two schedule additions in `serve` panic on clock overflow
 **Raised by** 011 (`review-code.md` F-8) · **cost** tier 1, with one design choice
 
@@ -390,13 +410,18 @@ To a user on +10:00. Reading it costs a mental subtraction, every time.
 is in.
 
 ### FU-18 — `goad-emit` takes no `--config PATH`
-**Raised by** 005 (F-6) · **cost** tier 1
+**Raised by** 005 (F-6), 015 (`design.md` I-3) · **cost** tier 1
 
 The host takes a configuration path as a positional argument; emit takes only
 `--socket`, so `--socket` is the only route to a non-default configuration.
 **005 named 006 as where this becomes obvious or stops mattering, and 006 is
 closed** — the default path is the real one now, so the question is answerable
-rather than waiting.
+rather than waiting. 015 made a relative `ingress.path` mean the
+configuration's directory, so the default file and `goad-emit` agree wherever
+each starts — but a host started on any other file (the demo, a kit
+example's copy) is still reached only with `--socket`, and the kit says so.
+Slice 012's `handover-satan-followups.md` holds `goad-emit --config` as its
+group B, behind 012's audit.
 
 **Dead when** emit takes a configuration path, or the entry is struck with why
 it never needed one.

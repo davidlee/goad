@@ -316,10 +316,10 @@ shipped work departs from it:
 - [x] Tests and checks green
 - [x] Specs / policy / ADRs reconciled, with user endorsement where amended
 - [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
-- [ ] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
-- [ ] `slice-nnn.md` Summary and Follow-ups written
-- [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
-- [ ] `slice-nnn.md` stage set to `done`
+- [x] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
+- [x] `slice-nnn.md` Summary and Follow-ups written
+- [x] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
+- [x] `slice-nnn.md` stage set to `done`
 
 ## Leads for the code reviewer
 

@@ -44,6 +44,17 @@ controls were being run at all.
   may be held by the type system or the lint set rather than by the test, and
   the test is then asserting something else.
 
+## A second face: a mutation spelled for the wrong type
+
+Slice 015's M8 added an `arg0` call to the backend spawn
+(`docs/slices/015/audit.md`, the mutation table's M8 row). Its first spelling
+imported `std::os::unix::process::CommandExt` and did **not** compile:
+`goad_shell::backend::process` builds a `tokio::process::Command`, which wraps
+std's and carries the unix extensions (`arg0`, `process_group`, `pre_exec`) as
+inherent methods, so std's trait does not apply to it. It was discarded, not
+counted, and respelled as the inherent `command.arg0(..)`. Read which
+`Command` a file builds before spelling a mutation against it.
+
 Related: `a-green-test-can-assert-a-proxy.md`,
 `a-bound-is-not-tested-at-the-bound.md`, `a-test-rule-binds-to-a-defect-not-a-surface.md`.
 

@@ -1,6 +1,6 @@
 # Slice 015: a config travels with its backend
 
-**Stage:** planned
+**Stage:** done — closed 2026-10-19; audit and reconciliation in `audit.md`
 **Tier:** 2 (full) — it adds a rule to SPEC-001, which states nothing today
 about where a backend command runs.
 **Depends on:** nothing, to ship. Code and its kit and exerciser prose land
@@ -79,17 +79,17 @@ directory (OQ-1, settled).
 
 ## Acceptance criteria
 
-- [ ] AC-1 — A config whose `command` holds a relative path to its backend
+- [x] AC-1 — A config whose `command` holds a relative path to its backend
   works when goad is started from another directory, including when goad
   reaches the config through a symbolic link (the live setup: OQ-2).
-- [ ] AC-2 — `goad-check --config` behaves the same way, so a check run from
+- [x] AC-2 — `goad-check --config` behaves the same way, so a check run from
   any directory exercises what the host will run.
-- [ ] AC-3 — SPEC-001 states the rule as a requirement with a §Verification
+- [x] AC-3 — SPEC-001 states the rule as a requirement with a §Verification
   row, and the kit states it without the current *make every path absolute*
   advice.
-- [ ] AC-4 — A person has run goad with a relative-path config, from a
+- [x] AC-4 — A person has run goad with a relative-path config, from a
   directory other than the config's, and seen a view.
-- [ ] AC-5 — A relative `ingress.path` names the same socket for goad and
+- [x] AC-5 — A relative `ingress.path` names the same socket for goad and
   for `goad-emit` without `--socket`, wherever each is started.
 
 ## Governing canon
@@ -147,9 +147,80 @@ directory (OQ-1, settled).
 
 ## Summary
 
-<!-- Written at close: what actually landed, in three or four lines. -->
+A configuration and its backend now move together as one directory.
+`Config::load` canonicalizes the file's path, every link in it, and anchors
+the loaded `Command` and a relative `[ingress] path` at the file's own
+directory. `ProcessBackend::exchange` runs the backend there with `PWD` set to
+it, and executes a relative program that contains a `/` by its joined path,
+which is also the name it receives. A spawn failure names the executable and
+the directory (`BackendError::Spawn`). goad, `goad-check --config` and
+`goad-emit` without `--socket` all go through the same `Config::load`, so they
+agree wherever each is started; `goad-check`'s argv form keeps the caller's
+directory.
+
+Canon: SPEC-001 gained R-60, §6.4 *Where the backend runs* and R-60's §7 row;
+SPEC-003 gained R-17, the rule and the socket-address limit in §6.1, R-17's §7
+row, and R-60 in §9. SPEC-001 carries R-60 with no R-59 until slice 012's
+audit. The kit, the examples, `exercisers/demo.toml` and the `justfile` state
+the new rule and drop the *start goad in this directory* advice. A person ran
+goad on the demo from `/tmp`, directly and through a link, and reached it with
+`just emit` (AC-4, AC-5). Code review ran two rounds: F-1 to F-13, all
+verified, none a behavioural defect (`review-code.md`).
 
 ## Follow-ups
 
-<!-- Deferred work surfaced by this slice. Each becomes a future slice or a
-     line in a spec. -->
+Promoted to `docs/follow-ups.md`; each one extends a row that already raised
+the claim, and no new row was needed:
+
+- **FU-11 — citation extended** (`design.md` D11). `goad`'s own `main.rs::start`
+  is held by review and AC-4, not a test. Not a repair: the design rejected a
+  binary-tier `goad` case because the binary reaches a window before the
+  spawn, and the path it would test is the `Config::load` → `ProcessBackend`
+  path the `goad-shell` integration cases and the built `goad-check` already
+  hold. Priced at tier 1 plus a harness, which is FU-11's shape.
+- **FU-10 — citation extended** (`review-code.md` F-11). Line-number citations
+  remain in files this slice never touched (`goad`'s `canonical.rs`,
+  `view_model.rs`, `lib.rs`). Every file the slice touched was swept to zero;
+  the rest are outside its surfaces, and FU-10's *Dead when* covers them.
+- **FU-5 — citation extended** (`notes.md` PHASE-01 *Decisions*).
+  `goad-emit`'s `exchange.rs::config_home` is one more unique-path helper
+  `claim` does not hold, for FU-5's mechanical reason: the target does not
+  include `tests/support/scripting.rs`. Priced at FU-5's tier 1; moving `claim`
+  was outside every phase's surfaces.
+- **FU-18 — citation extended** (`design.md` I-3). A relative `ingress.path`
+  now agrees for the default file wherever goad and `goad-emit` start, but a
+  goad started on any other file is still reached only with `--socket`. A
+  non-goal here (slice 012's group B, behind 012's audit), so not a repair.
+
+Re-verified, by each row's own *Dead when*, the rows naming a file this slice
+touched: FU-5, FU-6, FU-10, FU-11, FU-14, FU-18, FU-35, FU-37, FU-42, FU-43.
+None was killed by this slice. **FU-43's condition is met**, by slice 012
+PHASE-03 (`a02165b`), not by this slice; the row says so and is left for 012's
+close to strike.
+
+`notes.md` §Open, each entry (the boxes there cite the evidence):
+
+- **Promote `canon-delta.md`**, **re-point the §7 citations**, **the kit's
+  citation of the new ids**, **record the person's run** — settled at audit
+  (`audit.md` Reconciliation and §Evidence).
+- **Slice 012's drift row** — carried to 012: `docs/slices/012/plan.md` §Owed
+  holds it, and 012's audit discharges it.
+- **D4 — a configuration named by a descriptor that is not a file** (a pipe, a
+  socket, a process substitution) is refused, not anchored — settled, not
+  promoted: tolerated by design because nothing in the tree, the kit or canon
+  uses the form, and a fallback would be a second rule for where a backend
+  runs. `ConfigError::Read`'s doc states it (`review-code.md` F-2).
+- **§5.5 — a relative `PATH` entry now means the config's directory** —
+  settled, not promoted: SPEC-001 §6.4 and `running.md` state it as the
+  environment's choice. Code review round 1 verified it against std's source
+  and the built `goad-check`. A case would pin std's lookup order, not
+  anything the host decides.
+- **D11**, the **line-number citations**, **`config_home`** and **I-3** —
+  promoted, above.
+- **The audit-bound findings from PHASE-01..03** — settled by
+  `review-code.md` F-4 and F-9, and by promotion for the ahead-of-promotion
+  citations.
+- **The memory candidate** — harvested
+  (`docs/memory/path-equality-ignores-an-interior-dot.md`).
+- **The Owed box** — still open, and the person's: after the merge, delete
+  `goad-demo.sock` and `goad-demo.sock.lock` at the main checkout's root.

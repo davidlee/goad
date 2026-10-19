@@ -1130,7 +1130,7 @@ when.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-19 · PHASE-04 (to VH-1) · see the PHASE-04 commit
+**Fresh as of:** 2026-10-19 · close · after `572b031`
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1165,46 +1165,90 @@ when.
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
 - `Path` equality ignores interior `.`; compare `OsStr` for byte claims
-  (PHASE-01 Findings).
+  (PHASE-01 Findings) — lifted: `docs/memory/path-equality-ignores-an-interior-dot.md`.
 - `arg0` reaches a native program and not a script — M8 reds VT-4 alone, VT-3
-  stays green (PHASE-02 mutation table): D5's premise, measured.
+  stays green (PHASE-02 mutation table): D5's premise, measured. Not lifted:
+  SPEC-001 §6.4 and `ProcessBackend::exchange`'s comment record it.
+- A bare program is looked up on `PATH` after the change of directory, on
+  both of std's spawn routes (`review-code.md` Synthesis, *What std actually
+  does*). Not lifted: SPEC-001 §6.4 states it.
+- A mutation spelled through std's `CommandExt` does not compile against
+  tokio's `Command`, which carries `arg0` as an inherent method (`audit.md`,
+  M8's row) — lifted as a second instance into
+  `docs/memory/a-negative-control-that-does-not-compile.md`.
+- rustfmt does not wrap comments, so an over-long or half-reflowed doc line
+  passes the gate; a repair's own lines need the class check too
+  (`review-code.md` F-10, F-11) — lifted:
+  `docs/memory/rustfmt-does-not-wrap-comments.md`.
 - A spawn case's log lives inside its claimed `directory`; no second
-  claimed kind needed (PHASE-02 Decisions).
+  claimed kind needed (PHASE-02 Decisions). Not lifted: `claim`'s doc holds
+  the kinds.
 - "Judged" is too weak a pin for a spawn location: a spawn failure is judged
-  too (exit 1). Pin on accepted (PHASE-03 Decisions, VT-2).
+  too (exit 1). Pin on accepted (PHASE-03 Decisions, VT-2). Not lifted: an
+  instance of `docs/memory/a-green-test-can-assert-a-proxy.md`.
+- A bare `design.md:NNN` in code named slice 001's design, found only by
+  `git log` (`review-code.md` F-11). Not lifted: the class is
+  `docs/memory/cite-requirements-not-finding-ids.md`'s (a slice-local name is
+  unique only inside its slice) and `cite-by-symbol-not-line-number.md`'s.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
+Swept at close, 2026-10-19 (`slice-015.md` §Follow-ups carries the
+reasoning). Every entry is dispositioned; one box stays open, and it is the
+person's.
+
 *From `plan.md` §Overview, Owed to audit and close (VA-4), one box per bullet:*
-- [ ] **Promote `canon-delta.md`** — SPEC-001 Changes 1-3 and SPEC-003 Changes
-  1-4, with the person's endorsement, recorded in `audit.md`'s Reconciliation
-  table; after 012's promotion by preference, not as a gate.
-- [ ] **Re-point the §7 test citations** in both rows to the symbols that
-  shipped (see VA-2's additions) and confirm each resolves.
-- [ ] **The kit's citation of the new ids** — once promoted, decide with the
-  person whether `running.md` and `events.md` cite R-60 / R-17.
-- [ ] **Record the person's run** (VH-1) in `audit.md` §Evidence; re-run VH-1
-  on the repaired build if an audit repair touches `goad_shell::config` or the
-  spawn.
-- [ ] **Slice 012's drift row** — already in `docs/slices/012/plan.md` §Owed;
-  audit names the hand-off, does not edit 012's record.
-- [ ] **The design's residues**, as follow-up candidates: `main.rs::start`
-  held by review and AC-4 only (D11); `/dev/stdin` or process-substitution
-  config paths refused (D4); a relative `PATH` entry now means the config's
-  directory (§5.5).
-- [ ] **The Owed box** (stale root `goad-demo.sock` pair) — ticked by the
-  person after the merge.
-- [ ] **Disposition every other §Open candidate** at close.
+- [x] **Promote `canon-delta.md`** — settled: promoted with the person's
+  endorsement (`design-log.md` 2026-10-19, *code review round 2, residues, and
+  canon promotion*), `dfd187a`; `audit.md` Reconciliation, the SPEC-001 and
+  SPEC-003 rows.
+- [x] **Re-point the §7 test citations** — settled: none needed; every cited
+  `fn` resolves (`audit.md` Reconciliation, *`canon-delta.md` §7 citations*,
+  re-checked after round 2's repairs).
+- [x] **The kit's citation of the new ids** — settled: the person decided no
+  kit citation (same `design-log.md` entry; `audit.md` Reconciliation).
+- [x] **Record the person's run** (VH-1) — settled: `audit.md` §Evidence,
+  AC-4 and AC-5. No re-run: every repair since `bdc93f2` is a comment, which
+  was the person's condition (AC-4's diff check).
+- [x] **Slice 012's drift row** — carried to 012: the row is in
+  `docs/slices/012/plan.md` §Owed (*Record slice 015's rule change as design
+  drift*), and 012's audit discharges it. 015 names the hand-off (`audit.md`
+  Verdict) and does not edit 012's record.
+- [x] **The design's residues**:
+  - `goad`'s `main.rs::start` held by review and AC-4 only (D11) — promoted:
+    `docs/follow-ups.md` FU-11, citation extended.
+  - A configuration named by a descriptor that is not a file — a pipe, a
+    socket, a process substitution — is refused (D4, as corrected by
+    `review-code.md` F-2) — settled: tolerated by design, stated in
+    `ConfigError::Read`'s doc; no follow-up.
+  - A relative `PATH` entry now means the config's directory (§5.5) —
+    settled: SPEC-001 §6.4 and `running.md` state it as the environment's
+    choice; code review round 1 verified it against std's source and the
+    built `goad-check`. No follow-up.
+- [ ] **The Owed box** (stale root `goad-demo.sock` pair) — still open: the
+  person deletes them in the main checkout after the merge (§Owed).
+- [x] **Disposition every other §Open candidate** — done, below; and two
+  candidates that never reached this list:
+  - Line-number citations in files this slice never touched (`review-code.md`
+    F-11's Response: `goad`'s `canonical.rs`, `view_model.rs`, `lib.rs`) —
+    promoted: `docs/follow-ups.md` FU-10, citation extended.
+  - `exchange.rs::config_home` (goad-emit), a new unique-path helper `claim`
+    does not hold (PHASE-01 *Decisions*) — promoted: `docs/follow-ups.md`
+    FU-5, citation extended.
+  - `goad-emit` reads only the default configuration, so a goad started on
+    any other file is reached only with `--socket` (`design.md` I-3; the
+    demo, a kit example's copy) — promoted: `docs/follow-ups.md` FU-18,
+    citation extended.
 
 *Audit-bound findings from PHASE-01..03:*
-- [ ] `startup.rs::listener::socket_path`'s doc says "the third such helper in
-  this test binary" — a count the never-count rule forbids.
-- [ ] `Config::parse`'s doc reads "is the only caller that need" (nit).
-- [ ] `running.md` *"the file and your backend can move together"* — "the file"
-  is the config file, left implicit (nit).
-- [ ] `SPEC-001/R-60` is cited in `process.rs`, `error.rs` and now
-  `exercisers/demo.toml` (and `SPEC-003/R-17` in `.gitignore`) ahead of
-  promotion; confirm none reaches `main` unpromoted.
-- [ ] Memory candidate: a path assertion about bytes must compare `OsStr`, not
-  `Path` (`Path` equality ignores an interior `.`).
+- [x] `startup.rs::listener::socket_path`'s count — settled: repaired with the
+  class, `review-code.md` F-4.
+- [x] `Config::parse`'s *need* — settled: repaired, `review-code.md` F-9.
+- [x] `running.md` *"the file and your backend can move together"* — settled:
+  repaired, `review-code.md` F-9.
+- [x] `SPEC-001/R-60` and `SPEC-003/R-17` cited ahead of promotion — settled:
+  promotion makes each true (`audit.md` Reconciliation, *code and repository
+  comments citing …*, verified on promotion).
+- [x] Memory candidate, `OsStr` for byte claims — harvested:
+  `docs/memory/path-equality-ignores-an-interior-dot.md`.
