@@ -43,3 +43,6 @@ mod round_trip;
 
 #[cfg(test)]
 mod transport;
+
+#[cfg(test)]
+mod working_directory;

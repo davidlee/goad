@@ -11,7 +11,7 @@
 //! chose.
 
 use std::ffi::OsString;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -87,6 +87,12 @@ pub struct BackendConfig {
 pub struct Command {
   pub program: String,
   pub arguments: Vec<String>,
+  /// Where the command runs. `Some` is a command loaded from a file: the
+  /// canonical directory of that file, so the backend's relative paths mean
+  /// the same wherever the host was started. `None` is a command with no
+  /// file — `goad-check`'s argv form, and tests — which runs where its caller
+  /// runs.
+  pub working_directory: Option<PathBuf>,
 }
 
 impl Command {
@@ -94,6 +100,21 @@ impl Command {
     Self {
       program: program.into(),
       arguments,
+      working_directory: None,
+    }
+  }
+
+  /// The path the host executes: `program` anchored at the working directory
+  /// when it is relative and contains `/`; otherwise `program` as written —
+  /// absolute already, or a bare name the environment looks up on `PATH`.
+  #[must_use]
+  pub fn executable(&self) -> PathBuf {
+    let program = Path::new(&self.program);
+    match &self.working_directory {
+      Some(directory) if program.is_relative() && self.program.contains('/') => {
+        anchored(directory, program)
+      }
+      Some(_) | None => program.to_path_buf(),
     }
   }
 
@@ -177,28 +198,46 @@ struct FileIngress {
 impl Config {
   /// Read and check a configuration file.
   ///
+  /// The path is canonicalized first, and the **canonical** path is the one
+  /// read: the directory the configuration is anchored at is the file's real
+  /// directory, not that of a link that led to it.
+  ///
   /// # Errors
   ///
-  /// `ConfigError::Read` if the file is missing or unreadable; otherwise
-  /// whatever [`Config::parse`] reports.
+  /// `ConfigError::Read` if the file is missing or unreadable, is a dangling
+  /// link, or names no file in a directory; otherwise whatever
+  /// [`Config::parse`] reports.
   pub fn load(path: &Path) -> Result<Self, ConfigError> {
-    let text = std::fs::read_to_string(path).map_err(ConfigError::Read)?;
-    Self::parse(&text)
+    let canonical = std::fs::canonicalize(path).map_err(ConfigError::Read)?;
+    let directory = canonical.parent().ok_or_else(|| {
+      ConfigError::Read(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        format!("{} names no file in a directory", canonical.display()),
+      ))
+    })?;
+    let text = std::fs::read_to_string(&canonical).map_err(ConfigError::Read)?;
+    Self::parse(&text, directory)
   }
 
   /// Check a configuration that has already been read.
   ///
   /// Separate from `load` because every rejection this type makes is about the
   /// text rather than the file, so the tests that state them need no filesystem.
+  /// The relative paths in `text` resolve against `directory`, used as given;
+  /// `load` hands it the file's canonical directory and is the only caller
+  /// that need.
   ///
   /// # Errors
   ///
   /// `Syntax` if the text is not this shape; `Duration` if a duration string is
   /// not one the host can resolve; `EmptyCommand`, `EmptyPath` and
   /// `NonPositive` for the values that parse and still cannot be honoured.
-  pub fn parse(text: &str) -> Result<Self, ConfigError> {
+  pub fn parse(text: &str, directory: &Path) -> Result<Self, ConfigError> {
     let file: File = toml::from_str(text).map_err(|error| ConfigError::Syntax(Box::new(error)))?;
-    let command = Command::from_argv(file.backend.command).ok_or(ConfigError::EmptyCommand)?;
+    let command = Command {
+      working_directory: Some(directory.to_path_buf()),
+      ..Command::from_argv(file.backend.command).ok_or(ConfigError::EmptyCommand)?
+    };
     Ok(Self {
       backend: BackendConfig {
         command,
@@ -207,22 +246,47 @@ impl Config {
       schedule: ScheduleConfig {
         default_poll: signed("schedule.default_poll", &file.schedule.default_poll)?,
       },
-      ingress: file.ingress.map(ingress_config).transpose()?,
+      ingress: file
+        .ingress
+        .as_ref()
+        .map(|ingress| ingress_config(ingress, directory))
+        .transpose()?,
     })
   }
 }
 
 /// `ingress.path` must be non-empty: an unusable value is not representable
 /// past this boundary, the same argument `EmptyCommand` rests on.
-fn ingress_config(file: FileIngress) -> Result<IngressConfig, ConfigError> {
+fn ingress_config(file: &FileIngress, directory: &Path) -> Result<IngressConfig, ConfigError> {
   if file.path.is_empty() {
     return Err(ConfigError::EmptyPath {
       key: "ingress.path",
     });
   }
   Ok(IngressConfig {
-    path: PathBuf::from(file.path),
+    path: anchored(directory, Path::new(&file.path)),
   })
+}
+
+/// `path` joined onto `directory`: the one join, shared by the executable and
+/// the socket path.
+///
+/// Interior `.` components are dropped, so `./goad.sock` is
+/// `<directory>/goad.sock` and spends no bytes of a socket address's 107 on
+/// `/./`. `..` is kept: folding it lexically is wrong across links. An
+/// absolute `path` is returned as is. `.` alone anchors to `directory`
+/// itself, with no trailing separator.
+fn anchored(directory: &Path, path: &Path) -> PathBuf {
+  if path.is_absolute() {
+    return path.to_path_buf();
+  }
+  let mut joined = directory.to_path_buf();
+  joined.extend(
+    path
+      .components()
+      .filter(|component| !matches!(component, Component::CurDir)),
+  );
+  joined
 }
 
 /// One duration string, in the product's one grammar, that must also be usable.
@@ -271,8 +335,15 @@ pub fn positive_duration(key: &'static str, raw: &str) -> Result<std::time::Dura
 
 #[cfg(test)]
 mod tests {
-  use super::Config;
+  use std::ffi::OsStr;
+  use std::path::{Path, PathBuf};
+
+  use super::{Command, Config};
   use crate::error::ConfigError;
+
+  /// The directory `parse` is handed where the case is not about the
+  /// directory. `parse` never touches the filesystem, so it need not exist.
+  const ANCHOR: &str = "/anchor";
 
   /// The design's own example, `design.md:1134`.
   const GOOD: &str = r#"
@@ -285,7 +356,7 @@ default_poll = "30m"
 "#;
 
   fn rejection(text: &str) -> ConfigError {
-    match Config::parse(text) {
+    match Config::parse(text, Path::new(ANCHOR)) {
       Err(error) => error,
       Ok(config) => panic!("accepted, as {config:?}"),
     }
@@ -295,7 +366,8 @@ default_poll = "30m"
 
   #[test]
   fn the_design_s_own_example_loads() {
-    let config = Config::parse(GOOD).expect("the example in the design must load");
+    let config =
+      Config::parse(GOOD, Path::new(ANCHOR)).expect("the example in the design must load");
     assert_eq!(config.backend.command.program, "deno");
     assert_eq!(
       config.backend.command.arguments,
@@ -305,6 +377,10 @@ default_poll = "30m"
     assert_eq!(
       config.schedule.default_poll,
       jiff::SignedDuration::from_mins(30)
+    );
+    assert_eq!(
+      config.backend.command.working_directory,
+      Some(PathBuf::from(ANCHOR))
     );
   }
 
@@ -463,9 +539,95 @@ default_poll = "30m"
   #[test]
   fn an_ingress_section_loads_with_its_path() {
     let text = format!("{GOOD}\n[ingress]\npath = \"./goad.sock\"\n");
-    let config = Config::parse(&text).expect("a well-formed ingress section must load");
+    let config =
+      Config::parse(&text, Path::new(ANCHOR)).expect("a well-formed ingress section must load");
     let ingress = config.ingress.expect("the section was present");
-    assert_eq!(ingress.path, std::path::PathBuf::from("./goad.sock"));
+    assert_eq!(ingress.path, PathBuf::from("/anchor/goad.sock"));
+  }
+
+  /// D7: the one join. The path is joined onto the directory **given**, with
+  /// no filesystem in the way, so the answer is byte-exact — compared as an
+  /// `OsStr`, because `Path` equality ignores an interior `.` and would not
+  /// see the very thing under test. It is the socket path's length (`sun_path`
+  /// is 107 bytes) that an interior `.` would otherwise spend. A `..` is kept, because folding it lexically is wrong
+  /// across links. `.` alone names the directory itself, with no trailing
+  /// separator, and is the one spelling whose remainder is empty.
+  #[test]
+  fn a_relative_path_resolves_against_the_directory_given() {
+    for (written, anchored) in [
+      ("./goad.sock", "/anchor/goad.sock"),
+      ("goad.sock", "/anchor/goad.sock"),
+      ("a/./b/./goad.sock", "/anchor/a/b/goad.sock"),
+      ("../goad.sock", "/anchor/../goad.sock"),
+      ("/run/goad.sock", "/run/goad.sock"),
+      ("/run/./goad.sock", "/run/./goad.sock"),
+      (".", "/anchor"),
+      ("./", "/anchor"),
+    ] {
+      let text = format!("{GOOD}\n[ingress]\npath = \"{written}\"\n");
+      let config = Config::parse(&text, Path::new(ANCHOR)).expect("a well-formed section loads");
+      assert_eq!(
+        config
+          .ingress
+          .expect("the section was present")
+          .path
+          .as_os_str(),
+        OsStr::new(anchored),
+        "ingress.path = {written:?}"
+      );
+      assert_eq!(
+        config.backend.command.working_directory,
+        Some(PathBuf::from(ANCHOR))
+      );
+    }
+  }
+
+  /// D3: only a relative program **with a slash** is the config's; a bare name
+  /// is the environment's to look up, and an absolute one is already anchored.
+  #[test]
+  fn the_executable_is_anchored_only_for_a_relative_path_with_a_slash() {
+    let anchored = |program: &str| Command {
+      working_directory: Some(PathBuf::from(ANCHOR)),
+      ..Command::new(program, Vec::new())
+    };
+    for (program, executable) in [
+      ("./b.sh", "/anchor/b.sh"),
+      ("bin/b", "/anchor/bin/b"),
+      ("../b", "/anchor/../b"),
+      ("/abs/b", "/abs/b"),
+      ("python3", "python3"),
+    ] {
+      assert_eq!(
+        anchored(program).executable().as_os_str(),
+        OsStr::new(executable),
+        "program = {program:?}"
+      );
+    }
+    assert_eq!(
+      Command::new("./b.sh", Vec::new()).executable(),
+      PathBuf::from("./b.sh"),
+      "a command with no directory runs where its caller runs"
+    );
+  }
+
+  /// D4: a link that leads nowhere is a file that cannot be read, reported as
+  /// such — not as some other kind of configuration fault.
+  #[test]
+  fn a_dangling_link_to_a_configuration_is_unreadable() {
+    let link =
+      std::env::temp_dir().join(format!("goad-config-dangling-{}.toml", std::process::id()));
+    match std::fs::remove_file(&link) {
+      Ok(()) | Err(_) => (),
+    }
+    std::os::unix::fs::symlink(link.with_extension("absent"), &link)
+      .expect("the temp directory must be writable");
+    let outcome = Config::load(&link);
+    std::fs::remove_file(&link).expect("the link just made must be removable");
+    match outcome {
+      Err(ConfigError::Read(_)) => (),
+      Err(other) => panic!("a dangling link was refused as {other}"),
+      Ok(config) => panic!("a dangling link loaded, as {config:?}"),
+    }
   }
 
   #[test]
@@ -497,7 +659,8 @@ default_poll = "30m"
 
   #[test]
   fn with_no_ingress_section_ingress_is_none() {
-    let config = Config::parse(GOOD).expect("the design's own example must load");
+    let config =
+      Config::parse(GOOD, Path::new(ANCHOR)).expect("the design's own example must load");
     assert!(
       config.ingress.is_none(),
       "no [ingress] section must yield ingress: None, not {:?}",

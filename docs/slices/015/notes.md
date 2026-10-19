@@ -8,7 +8,7 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending | 2026-10-19 |
+| PHASE-01 | done | 2026-10-19 |
 | PHASE-02 | pending | 2026-10-19 |
 | PHASE-03 | pending | 2026-10-19 |
 | PHASE-04 | pending | 2026-10-19 |
@@ -186,22 +186,23 @@ there for goad and `goad-emit` alike, wherever each was started."*
     docs and in this sheet.
 
 **Tasks** — `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked
-- [ ] Print `git -C /home/david/dev/goad/.claude/worktrees/slice-015 log -1
+- [x] Print `git -C /home/david/dev/goad/.claude/worktrees/slice-015 log -1
       --oneline`; record it here. Set PHASE-01 `in progress` in §Status.
-- [ ] API stubs + `Config::parse(text, directory)` signature through every
+      (`c24c9c8 015: PHASE-01 sheet`.)
+- [x] API stubs + `Config::parse(text, directory)` signature through every
       caller (Surfaces); gate compiles.
-- [ ] Write VT-1, VT-2 (config.rs tests), VT-6 (`working_directory.rs`, new,
+- [x] Write VT-1, VT-2 (config.rs tests), VT-6 (`working_directory.rs`, new,
       with its `mod` line), VT-4 (startup.rs `listener`), VT-5 (both
       `goad-emit` cases); run against the stubs; record each red below.
-- [ ] Real bodies: `anchored`, `executable`, `load` (canonicalize, A-1 arm),
+- [x] Real bodies: `anchored`, `executable`, `load` (canonicalize, A-1 arm),
       `parse` (struct update, anchored ingress); EX-6's two meaning changes;
       `ConfigError::Read`'s doc.
-- [ ] VT-3 and VT-7 pins, green on arrival.
-- [ ] Refactor step: one join, docs true, no dead helper.
-- [ ] `claim`'s doc rewritten by name (Note 6).
-- [ ] M1–M5, each recorded below; `git status` clean after each restore.
-- [ ] VA-1, VA-2 recorded below.
-- [ ] `just check` exits 0; §Status PHASE-01 `done`; §Harvest updated; commit.
+- [x] VT-3 and VT-7 pins, green on arrival.
+- [x] Refactor step: one join, docs true, no dead helper.
+- [x] `claim`'s doc rewritten by name (Note 6).
+- [x] M1–M5, each recorded below; `git status` clean after each restore.
+- [x] VA-1, VA-2 recorded below.
+- [x] `just check` exits 0; §Status PHASE-01 `done`; §Harvest updated; commit.
 
 **Natural-red evidence** — one row per case: name · command · the assertion it
 failed on. A red for another reason than `design.md` §9's *red today because*
@@ -209,12 +210,12 @@ column does not count.
 
 | case | command | failed on (assertion, and why it matches §9) |
 |---|---|---|
-| `config.rs::tests::a_relative_path_resolves_against_the_directory_given` | | |
-| `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | | |
-| `working_directory.rs::a_config_reached_through_a_linked_directory_is_anchored_at_the_target` | | |
-| `startup.rs::listener::a_relative_configured_path_binds_beside_the_config` | | |
-| `exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration` | | |
-| `main.rs::tests::a_configured_ingress_path_is_what_is_written_to` (goad-emit) | | |
+| `config.rs::tests::a_relative_path_resolves_against_the_directory_given` | `cargo test -p goad-shell --lib config::` (against the stubs) | `assertion left == right`, `ingress.path = "./goad.sock"`: left `./goad.sock`, right `/anchor/goad.sock` — `parse` ignores the directory (§9: no such parameter) |
+| `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | same | `program = "./b.sh"`: left `./b.sh`, right `/anchor/b.sh` — `executable` returns `program` unchanged (§9: no `executable`) |
+| `working_directory.rs::a_config_reached_through_a_linked_directory_is_anchored_at_the_target` | `cargo test -p goad-shell --test integration working_directory` | `working_directory` left `None`, right `Some(<t>/real)` — `load` does not set one (§9: no `working_directory`) |
+| `startup.rs::listener::a_relative_configured_path_binds_beside_the_config` | `cargo test -p goad --test renderer a_relative_configured` | `no socket at "<tmp>/goad-wd-relative-<pid>.d/goad.sock"` (the `listener` call itself was `Ok`; the socket went to the crate directory — strays cleared, `git status` clean after) |
+| `exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration` | `cargo test -p goad-emit --test binary a_relative_configured` | exit status `left: 2, right: 0`: `goad-emit: nothing is listening at ./goad.sock` — connects in its own directory (asserted before the join; no hang) |
+| `main.rs::tests::a_configured_ingress_path_is_what_is_written_to` (goad-emit) | `cargo test -p goad-emit --bin goad-emit a_configured` | `left: "./from-config.sock"`, `right: "/tmp/goad-emit-configured-<pid>/goad/from-config.sock"` |
 
 **Mutation evidence** — runs use `--no-fail-fast`. Copy the file to the
 scratchpad, edit, run, copy back; `git status` clean after each restore. A
@@ -223,11 +224,11 @@ respell so the named behaviour is the one removed, and record the respelling.
 
 | id | edit (behaviour removed) | must red | command | compiled? | redded (name · assertion) | restore green? |
 |---|---|---|---|---|---|---|
-| M1 | `ingress_config` ignores the directory: the path as written | `config.rs::tests::a_relative_path_resolves_against_the_directory_given`; `startup.rs::listener::a_relative_configured_path_binds_beside_the_config`; `exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration`; goad-emit `main.rs::tests::a_configured_ingress_path_is_what_is_written_to` | | | | |
-| M2 | `anchored` is `directory.join(path)` alone (`.` kept) | `a_relative_path_resolves_against_the_directory_given` (byte-exact) | | | | |
-| M3 (01 half) | `load` anchors at the path's parent as given, not the canonical file's | `a_config_reached_through_a_linked_directory_is_anchored_at_the_target` | | | | |
-| M4 | `canonicalize`'s failure is a `ConfigError` other than `Read` | `a_dangling_link_to_a_configuration_is_unreadable` | | | | |
-| M5 | `ingress::bind` files `UnixListener::bind`'s failure as a `BindFault` other than `Unbindable` | `a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path` (and only the over-long half) | | | | |
+| M1 | `ingress_config` ignores the directory: the path as written | `config.rs::tests::a_relative_path_resolves_against_the_directory_given`; `startup.rs::listener::a_relative_configured_path_binds_beside_the_config`; `exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration`; goad-emit `main.rs::tests::a_configured_ingress_path_is_what_is_written_to` | `cargo test --no-fail-fast -p goad-shell -p goad -p goad-emit` | yes (`let _ = directory;` + `PathBuf::from(&file.path)`: respelled, since `unused` denies an unused `directory`) | 6: the four named, plus `config.rs::tests::an_ingress_section_loads_with_its_path` and `working_directory.rs::a_config_reached_through_a_linked_directory_is_anchored_at_the_target` (`left`/`right` on the path: `./goad.sock` vs the anchored one) | yes |
+| M2 | `anchored` is `directory.join(path)` alone (`.` kept) | `a_relative_path_resolves_against_the_directory_given` (byte-exact) | `cargo test --no-fail-fast -p goad-shell -p goad -p goad-emit` | yes (`let _ = Component::CurDir;` + `directory.join(path)`: respelled to keep the import used) | `a_relative_path_resolves_against_the_directory_given`: `left "/anchor/./goad.sock"`, `right "/anchor/goad.sock"`; also `the_executable_is_anchored_only_for_a_relative_path_with_a_slash`: `"/anchor/./b.sh"` vs `"/anchor/b.sh"` | yes |
+| M3 (01 half) | `load` anchors at the path's parent as given, not the canonical file's | `a_config_reached_through_a_linked_directory_is_anchored_at_the_target` | `cargo test --no-fail-fast -p goad-shell -p goad -p goad-emit` | yes (`path.parent()` for `canonical.parent()`) | `working_directory.rs::a_config_reached_through_a_linked_directory_is_anchored_at_the_target`: `working_directory` `Some(<t>/link)` vs `Some(<t>/real)` | yes |
+| M4 | `canonicalize`'s failure is a `ConfigError` other than `Read` | `a_dangling_link_to_a_configuration_is_unreadable` | `cargo test --no-fail-fast -p goad-shell -p goad -p goad-emit` | yes (`.map_err(|_| ConfigError::EmptyCommand)` on `canonicalize`) | `a_dangling_link_to_a_configuration_is_unreadable` (panic: refused as another variant); also `a_configuration_is_read_from_a_file_and_a_missing_one_says_so`, `goad-emit` `main.rs::tests::an_absent_configuration_file_is_a_named_fault`, `goad` `exit_codes::an_unreadable_configuration_exits_2_and_says_only_what_its_own_arm_says` | yes |
+| M5 | `ingress::bind` files `UnixListener::bind`'s failure as a `BindFault` other than `Unbindable` | `a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path` (and only the over-long half) | `cargo test --no-fail-fast -p goad-shell -p goad` | yes (`BindFault::Unprobeable` for `Unbindable` at `UnixListener::bind`) | `ingress.rs::a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path`, alone: "an over-long path is R-4's unusable location, got: could not be inspected: path must be shorter than SUN_LEN" | yes |
 
 M5 mutates `crates/goad-shell/src/ingress.rs`, outside Surfaces: permitted
 under copy-and-restore, nothing committed.
@@ -236,9 +237,48 @@ under copy-and-restore, nothing committed.
 §9's: §9's name · symbol shipped · file. (Audit re-points the citations; this
 phase edits neither `design.md` nor `canon-delta.md`.)
 
+None: every case ships under §9's name in §9's file.
+
 **Decisions taken during execution**
+- *`anchored` and the empty remainder (Note 3).* `.` and `./` anchor to the
+  directory itself, with no trailing separator (`PathBuf::extend` over the
+  non-`.` components pushes nothing). It can arise, via `ingress.path = "."`;
+  the bind then fails on a directory, which is the honest report. Pinned in
+  `a_relative_path_resolves_against_the_directory_given`'s table. `./` is
+  the same: `Path::components` drops the trailing separator.
+- *A-1's arm (Note 2).* `ConfigError::Read` over `io::Error::new(InvalidInput,
+  "<canonical> names no file in a directory")`. No panic, no new variant.
+- *Two new directory helpers, one per file, each claimed under its own kind.*
+  `startup.rs::listener::directory` (kind `startup directory`) and
+  `working_directory.rs::directory` (kind `working directory`), both minting
+  `goad-wd-<case>-<pid>.d`; `exchange.rs::config_home`, unheld, minting
+  `goad-emit-<case>-<pid>.d`. The `.d` suffix keeps them off every `marker`
+  path.
+- *Byte-exact comparisons use `OsStr`* (see Findings).
+- `Command::executable` carries `#[must_use]`.
+- `host.rs` and `round_trip.rs` pass `CARGO_MANIFEST_DIR` as the directory:
+  neither depends on it (`round_trip.rs` rebases the command itself; D10 is
+  PHASE-02's).
 
 **Findings**
+- **`Path` equality ignores an interior `.`.** `Path::new("/a/./b") ==
+  Path::new("/a/b")`. The first VT-1 and VT-2 compared `PathBuf`s, and M2
+  (`directory.join(path)`, `.` kept) went **green**. Both now compare
+  `as_os_str()` against `OsStr::new(..)` (bytewise), and M2 reds both. Found
+  by running the mutation, not by reading the test. Candidate memory:
+  "a path assertion about bytes must compare `OsStr`".
+- M5's file is `crates/goad-shell/src/ingress/mod.rs` (the sheet says
+  `ingress.rs`). Restored; `git status` clean.
+- `temp_dir()` was `/tmp` in this run; the length case's directory is 34
+  bytes, leaving 72 for the file name of the 107-byte control.
+- `startup.rs`'s existing `socket_path` doc (inside `mod listener`, untouched
+  here) says "the third such helper in this test binary" — a count the
+  *never count* rule forbids. Left for audit (outside this phase's edit of
+  `listener`: one new case).
+- VA-1: `just check` exits 0, so `transport_shape.rs`'s guards and every
+  *unaffected* case are green. VA-2: `git status` after the red runs showed no
+  socket, lock or config in a crate directory (the listener case clears and
+  re-checks its strays).
 
 ## Owed
 
@@ -257,14 +297,21 @@ when.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** <yyyy-mm-dd> · <phase or stage> · <commit>
+**Fresh as of:** 2026-10-19 · PHASE-01 · see the PHASE-01 commit
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
+- `Command::working_directory`, `Command::executable`, `config::anchored`;
+  `Config::load` canonicalizes and anchors, `Config::parse(text, directory)`.
+- Cases: `config.rs` VT-1/2/3, `working_directory.rs` (new target module),
+  `startup.rs::listener` AC-5, `goad-emit` AC-5 (binary and unit),
+  `ingress.rs` length pin. `claim`'s doc names its helpers, no count.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
+- `Path` equality ignores interior `.`; compare `OsStr` for byte claims
+  (PHASE-01 Findings).
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

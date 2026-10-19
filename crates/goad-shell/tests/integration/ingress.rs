@@ -652,6 +652,64 @@ async fn a_missing_directory_is_refused_as_an_unusable_location_not_as_an_unknow
   );
 }
 
+/// R-4's length edge: a socket address holds 107 bytes of path (`sun_path`
+/// less its terminator), and a path of 108 is refused rather than truncated —
+/// as `Unbindable` over the platform's `InvalidInput`, naming the path. A path
+/// of 107 in the same directory binds, which is what makes the refusal about
+/// length and not about the directory. std's wording is not asserted.
+///
+/// The directory is under `std::env::temp_dir()`, so what is left for the file
+/// name depends on it; a `TMPDIR` too long to leave room for the control fails
+/// the case naming the precondition and the length found, never skips it.
+#[tokio::test]
+async fn a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path() {
+  const HOLDS: usize = 107;
+
+  let dir = std::env::temp_dir().join(format!("goad-ingress-length-{}.d", std::process::id()));
+  let room = HOLDS.saturating_sub(dir.as_os_str().len().saturating_add(1));
+  assert!(
+    room > 0,
+    "precondition: std::env::temp_dir() leaves no room for a {HOLDS}-byte socket path; the \
+     directory this case needs is {} bytes",
+    dir.as_os_str().len()
+  );
+  match std::fs::remove_dir_all(&dir) {
+    Ok(()) | Err(_) => (),
+  }
+  match std::fs::create_dir(&dir) {
+    Ok(()) => (),
+    Err(error) => panic!("could not create the directory: {error}"),
+  }
+  let over = dir.join("s".repeat(room.saturating_add(1)));
+  let fits = dir.join("f".repeat(room));
+  assert_eq!(over.as_os_str().len(), HOLDS.saturating_add(1));
+  assert_eq!(fits.as_os_str().len(), HOLDS);
+
+  let refusal = match bind(&over) {
+    Err(error) => error,
+    Ok(_ingress) => panic!("a path of {} bytes must be refused", over.as_os_str().len()),
+  };
+  let bound = bind(&fits);
+
+  assert_eq!(refusal.path, over);
+  assert!(
+    matches!(&refusal.fault, BindFault::Unbindable(inner) if inner.kind() == std::io::ErrorKind::InvalidInput),
+    "an over-long path is R-4's unusable location, got: {}",
+    refusal.fault
+  );
+  assert!(
+    refusal.to_string().contains(&over.display().to_string()),
+    "{refusal}"
+  );
+  assert!(
+    bound.is_ok(),
+    "the control: a path of {HOLDS} bytes must bind"
+  );
+  match std::fs::remove_dir_all(&dir) {
+    Ok(()) | Err(_) => (),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // VT-5 — framing: newline, EOF, and a second envelope never read
 // ---------------------------------------------------------------------------

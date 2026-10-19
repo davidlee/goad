@@ -38,7 +38,8 @@ fn seeded_check() -> Timestamp {
 
 fn host(scripted: Vec<goad_shell::backend::transport::Exchange>) -> (Host<FakeBackend>, Calls) {
   let calls = Calls::default();
-  let config = Config::parse(CONFIG).expect("the fixture config must load");
+  let config = Config::parse(CONFIG, std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+    .expect("the fixture config must load");
   let backend = FakeBackend::new(scripted, &calls);
   (Host::new(config, backend, now()), calls)
 }

@@ -105,7 +105,9 @@ pub enum StateError {
 /// to run without a config, and guessing a command is not available to us.
 #[derive(Debug)]
 pub enum ConfigError {
-  /// The file is missing or could not be read.
+  /// The file could not be read: it is missing or unreadable, a link to
+  /// nothing, or a path that names no file in a directory — which
+  /// canonicalization refuses for `/dev/stdin` and `/proc/self/fd/N`.
   Read(std::io::Error),
   /// Not TOML, or TOML that is not this shape — a missing section, a missing
   /// key, a value of the wrong type. `toml`'s own message carries the line, the

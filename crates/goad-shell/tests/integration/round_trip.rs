@@ -58,8 +58,11 @@ async fn the_readme_s_own_config_loads_and_runs_the_example() {
     .into_iter()
     .find(|fence| fence.info.split_whitespace().next() == Some("toml"))
     .expect("the exerciser README has a toml fence");
-  let mut config = Config::parse(&readme[fence.body])
-    .unwrap_or_else(|error| panic!("the README's config: {error}"));
+  let mut config = Config::parse(
+    &readme[fence.body],
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")),
+  )
+  .unwrap_or_else(|error| panic!("the README's config: {error}"));
   config.backend.command = rooted_at_the_workspace(config.backend.command);
   let mut host = host_from(config, now());
 
