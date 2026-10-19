@@ -102,7 +102,7 @@ hold throughout; these are the surfaces to attack:
 | F-2 | major | fix-now | verified |
 | F-3 | major | doc-wrong | verified |
 | F-4 | minor | doc-wrong | verified |
-| F-5 | minor | fix-now | contested |
+| F-5 | minor | fix-now | verified |
 | F-6 | minor | tolerated | verified |
 | F-7 | minor | fix-now | verified |
 | F-8 | minor | doc-wrong | verified |
@@ -115,9 +115,10 @@ hold throughout; these are the surfaces to attack:
 | F-15 | nit | doc-wrong | verified |
 | F-16 | nit | doc-wrong | verified |
 | F-17 | nit | fix-now | verified |
-| F-18 | minor | fix-now | |
-| F-19 | nit | doc-wrong | |
-| F-20 | nit | doc-wrong | |
+| F-18 | minor | fix-now | verified |
+| F-19 | nit | doc-wrong | verified |
+| F-20 | nit | doc-wrong | verified |
+| F-21 | nit | | |
 
 ### Round 1 — raiser's notes
 
@@ -327,6 +328,8 @@ checker runs with `PATH` = `<root>/path`, from `<root>`. It asserts at least
 one log line and every line `from-path`, so an implementation that looks
 beside the config for a bare name reds it with `beside`. `design.md` §9 and
 R-60's §7 row cite it at its new path; the `working_directory.rs` row is gone.
+
+**Outcome (round 3):** verified. `design.md` §9 and R-60's §7 row put the case at `crates/goad-check/tests/binary/run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`, with `PATH` set by `Command::env` on the `goad-check --config` child: no global mutation, no new target. `goad-check` is located by `CARGO_BIN_EXE_goad-check`, not by `PATH`. The decoys use `#!/bin/sh`, which this tier already uses (`deletes-itself-on-its-third-run.sh`) and NixOS provides; a builtins-only decoy (`read`, `printf`, `>>`) reads its request and answers under `env -i PATH=/nonexistent` (R3-S2). Pin under the old spawn (no working directory, so only `<root>/path` can be found); red under a beside-the-config lookup, which writes `beside`.
 
 ### F-6 — `canonicalize` refuses a configuration that is not a file in a directory; D4's *same subjects* is false
 
@@ -646,9 +649,7 @@ link to `sh` — now asserting the anchored path, holds it.
 **Disposition:** fix-now
 **Response:** `working_directory.rs::a_native_program_receives_its_anchored_path_as_its_name`: the devshell's `sh`, resolved at test time (`sh -c 'command -v sh'`, then canonicalized to the real binary), is **copied** beside the config as `shell`; `["./shell", "-c", …]` logs `$0`, which is argv[0] for `sh -c` with no operand, and the case asserts `<canonical anchor>/shell`. Red today (`NotFound`) and red if `arg0(&program)` is put back (`./shell`, R1-S2). Cited in `design.md` §9 and R-60's §7 row.
 
-**Outcome:**
-
-### F-19 — R-60's report clause is not scoped to commands with a working directory
+**Outcome:** verified — round 3. `working_directory.rs::a_native_program_receives_its_anchored_path_as_its_name` in §9 and R-60's §7 row. The devshell's `sh` is bash (`bash-interactive-5.3p15/bin/sh` → `bash`, an ELF, not a multicall or wrapper binary), so `sh -c 'command -v sh'` + canonicalize + copy gives a real bash that behaves the same under the name `shell`; the store paths it was linked against are absolute, so the copy runs. R3-S1: the copy's `$0` is the joined path under D5, and `./shell` both with `arg0("./shell")` and under the platform's route, so the case is red under both regressions.### F-19 — R-60's report clause is not scoped to commands with a working directory
 
 **Severity:** nit
 **Location:** `canon-delta.md` SPEC-001 Change 1 (*its report MUST name the
@@ -668,9 +669,7 @@ directory too.
 **Disposition:** doc-wrong
 **Response:** R-60's clause is narrowed: *for a command loaded from a configuration file, its report MUST name the path the host tried to execute and the working directory …*. §6.4's sentence likewise says *a configured command*. `design.md` §5.2 states that such a command always has a working directory (I-1), and that `goad-check`'s argv form reports the executable only, its directory being the caller's own. Endorsed by the person (`design-log.md` 2026-10-19, round 2 dispositions).
 
-**Outcome:**
-
-### F-20 — R1 coordinates with a PHASE-10 in flight, not a PHASE-09
+**Outcome:** verified — round 3. R-60's clause now reads *for a command loaded from a configuration file*; §6.4 says *a configured command*; §5.2 says the argv form names the executable only and why; the §7 row's case loads a configuration. The four agree.### F-20 — R1 coordinates with a PHASE-10 in flight, not a PHASE-09
 
 **Severity:** nit
 **Location:** `design.md` §8 R1; `slice-015.md` *Depends on*
@@ -686,10 +685,91 @@ it, or a sentence saying why PHASE-09 cannot be in flight.
 **Disposition:** doc-wrong
 **Response:** The merge coordinates with any 012 walk in flight, PHASE-09 or PHASE-10, and with PHASE-10 also as a writer of the same files: `design.md` §8 R1 and `slice-015.md` *Depends on* corrected. `design-log.md`'s round 2 entry already states it; F-10's Response stands as written in round 1 and this Response supersedes its *only a PHASE-10* phrase; `canon-delta.md`'s promotion paragraph names no phase.
 
+**Outcome:** verified — round 3. §8 R1 and `slice-015.md` *Depends on* both coordinate with a 012 walk actually in flight, PHASE-09 or PHASE-10.### Round 3 — raiser's notes
+
+Raiser: the round-1 raiser, at `66ad96a`, over `b7b1756` and `66ad96a` only.
+Spike `R3-S` (scratchpad, not committed):
+
+- R3-S1 the devshell's `sh`, canonicalized and **copied** beside a directory
+  as `shell`, run with `-c 'echo $0'`: `Command::new(<dir>/shell)` with
+  `current_dir` → `<dir>/shell`; the same with `arg0("./shell")` → `./shell`;
+  `Command::new("./shell")` with `current_dir` (the platform's route) →
+  `./shell`.
+- R3-S2 a `#!/bin/sh` decoy that loops on `read`, appends a label with
+  `printf … >> "$1"` and prints `{}` runs to exit 0 under
+  `env -i PATH=/nonexistent`.
+
+**Complete:** F-5, F-18, F-19 and F-20's repairs, and R-60's narrowed clause
+against §5.2, §6.4 and the §7 row (F-19's Outcome). The §7 row now cites every
+case by full path or under its one stated default, and no case is counted.
+One wording point in the same row is F-21.
+
+### F-21 — R-60's §7 row opens with a tier and a quantifier two of its cases do not meet
+
+**Severity:** nit
+**Location:** `canon-delta.md` SPEC-001 Change 3
+
+**Expected:** the row's opening to describe the cases it names. Round 1's F-13
+is the same class for R-17's row.
+**Observed:** *integration, every case loading its configuration and driving a
+real backend from a working directory that is not the configuration's* —
+but the row also names a built-binary case (`goad-check/tests/binary/run.rs`),
+a case that drives no backend (`::a_config_reached_through_a_linked_directory_
+is_anchored_at_the_target` asserts the loaded value), and a unit test. The body
+says which is which, so nothing is false in substance; the opening is.
+**Evidence:** Change 3's text.
+
+**Disposition:**
+**Response:**
+
 **Outcome:**
 
 ## Synthesis
 
-<!-- Written when the ledger resolves. The closure story: what the review
-     changed, what it confirmed, and the risks it knowingly leaves standing. A
-     reader who trusts this section should not need to read the findings. -->
+Three rounds, findings F-1 to F-21; no blocker was raised.
+
+**What the review changed.** Most of it landed on R-60:
+- It no longer promises a program its name as written. A script cannot
+  receive that, so a relative program with a `/` now receives the joined path,
+  scripts and native programs alike, and `arg0` is gone (F-1).
+- The host's own resolution now has a witness, the script's `$0` (F-2), and
+  the native half has one too (F-18).
+- The directory-link half of the linked-config case moved from the spawn,
+  where it is unobservable, to the loaded value (F-3).
+- Its verification row separates red cases from the pin (F-4).
+- The `PATH` case moved to the built-binary tier so the environment cannot
+  decide it (F-5).
+- A spawn failure for a configured command names the executed path and the
+  working directory (F-11, scoped by F-19).
+
+Elsewhere:
+- The child's `PWD` is set to its working directory (F-7).
+- The read-only-directory edge now covers the socket, so the kit keeps *copy
+  this directory out*, with the reason (F-8).
+- Missed collateral joined the scope (F-9).
+- 015 merges code and prose together, coordinated with any 012 walk in flight
+  (F-10, F-20).
+
+The smaller ones: I-3 is conditioned on the same file (F-12); R-17's row and
+phrase were tidied (F-13); the length test no longer asserts std's wording and
+states its precondition (F-14); the builder went (F-15); the changed-tests
+list is complete (F-16); the stale root socket became a checklist box (F-17).
+
+**What it confirmed.** The design's spikes reproduce. `tokio`'s `arg0` and
+`UnixListener::bind` behave as stated, so host and `goad-emit` meet one
+length rule. `anchored` has the byte behaviour D7 needs. The lock is opened
+before the bind. Every config-driven spawn reaches the new field without
+editing a `main.rs`, and every caller of the changed functions and every site
+of `BackendError::Spawn` is in §9. The spawn-shape guards still hold.
+
+**Risks knowingly left standing:**
+- A config named by `/dev/stdin`, `<(…)` or `/proc/self/fd/N` is refused as
+  unreadable (F-6, tolerated: nothing uses the form).
+- A relative or empty `PATH` entry now means the config's directory (F-5's
+  edge, stated, not defended).
+- The length test fails rather than skips where `temp_dir()` exceeds 105
+  bytes, so a jail with a long `TMPDIR` gates red, with a message saying why.
+- `goad`'s own `main.rs::start` is held by review and AC-4 only (D11).
+- If 015 closes before 012, SPEC-001 carries R-60 with no R-59 until 012's
+  audit.
+
