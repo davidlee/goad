@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | done | 2026-10-19 |
 | PHASE-02 | done | 2026-10-19 |
 | PHASE-03 | done | 2026-10-19 |
-| PHASE-04 | awaiting VH-1 | 2026-10-19 |
+| PHASE-04 | done | 2026-10-19 |
 
 ## Phase sheets
 
@@ -1025,7 +1025,7 @@ commands, records what they saw under *VH-1* below, and sets `done`.
 - [x] VA-1, VA-2, VA-3 recorded; EX-6 §Owed updated; VA-4 §Open boxes.
 - [x] `just -n check` recorded (after; identical); `just check` exits 0.
 - [x] §Status PHASE-04 `awaiting VH-1`; §Harvest; commit; stop.
-- [ ] *(orchestrator)* VH-1 handed to the person; result recorded; `done`.
+- [x] *(orchestrator)* VH-1 handed to the person; result recorded; `done`.
 
 **VA-1 — hits, classed** (at the PHASE-04 commit, before it)
 
@@ -1074,6 +1074,24 @@ Renames: none. Additions, for audit's re-pointing:
 `/home/david/dev/goad/.claude/worktrees/slice-015` holds neither.
 
 **VH-1 — the person's run** (recorded by the orchestrator)
+
+Run by the person on 2026-10-19, on the worktree's build at `bdc93f2`, in
+the dev shell (`nix develop . --command …`), from the commands handed over in
+nushell syntax:
+
+1. From `/tmp`, goad on `<worktree>/exercisers/demo.toml` by its absolute
+   path: a view appeared; quit.
+2. From `/tmp`, goad through `/tmp/goad-015-demo.toml →
+   <worktree>/exercisers/demo.toml`: a view appeared; left running.
+3. From the worktree root, `just emit reddit-watcher reddit-opened`: the
+   running host's view was replaced by the *event arrived* view (AC-5).
+4. `exercisers/goad-demo.sock` and its lock existed; the root held no socket.
+
+The person's words: *"yeah that was all expected results. the #3 replaced the
+#2 window with an event arrived, etc"*. Nothing §9 did not predict. For
+`audit.md` §Evidence (AC-4, AC-5). If an audit repair touches
+`goad_shell::config` or the spawn, this run is repeated on the repaired build
+(`plan.md` §Owed).
 
 **Decisions taken during execution**
 - *`demo.toml` says where the raw forms are run from* (the repository root,
