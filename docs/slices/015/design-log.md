@@ -108,3 +108,13 @@ other, citing the finding id.
   promote its delta at its own audit (a slice does not close holding a
   draft), and SPEC-001 then carries R-60 with no R-59 until 012 promotes. The
   2026-10-19 *promotion order* entry stands as the preference, not a gate.
+
+### 2026-10-19 — amended canon wording after round 1
+
+- **Asked:** endorse the round-1 amendments to `canon-delta.md` (R-60 without
+  `arg0`, the joined path as the program's name, the new spawn-report clause;
+  §6.4's paragraph; R-60's §7 row; R-17's one phrase)? Keep the spawn-report
+  clause (F-11) in canon, or move it to the design only?
+- **Recommended:** endorse; keep the clause, since a refusal says which side
+  was wrong and the rule now has two causes for one failure.
+- **Decided:** "yes, and keep it".
