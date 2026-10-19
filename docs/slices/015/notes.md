@@ -8,7 +8,10 @@ after the slice closes is lifted into the Harvest section.
 
 | phase | state | as of |
 |-------|-------|-------|
-| PHASE-01 | pending / in progress / done / blocked | |
+| PHASE-01 | pending | 2026-10-19 |
+| PHASE-02 | pending | 2026-10-19 |
+| PHASE-03 | pending | 2026-10-19 |
+| PHASE-04 | pending | 2026-10-19 |
 
 ## Phase sheets
 
