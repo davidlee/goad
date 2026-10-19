@@ -129,3 +129,10 @@ other, citing the finding id.
   config-driven spawn changes). F-20: the merge coordinates with any 012 walk
   in flight, PHASE-09 or PHASE-10.
 - **Decided:** "confirmed yes" — all four, the F-19 narrowing included.
+
+### 2026-10-19 — F-21
+
+- **Asked:** reword the opening of R-60's §7 row to "integration, built-binary
+  and unit. Every case that drives a real backend loads its configuration and
+  does so from a working directory that is **not** the configuration's."
+- **Decided:** "approve".

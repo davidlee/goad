@@ -118,7 +118,7 @@ hold throughout; these are the surfaces to attack:
 | F-18 | minor | fix-now | verified |
 | F-19 | nit | doc-wrong | verified |
 | F-20 | nit | doc-wrong | verified |
-| F-21 | nit | | |
+| F-21 | nit | doc-wrong | |
 
 ### Round 1 — raiser's notes
 
@@ -719,8 +719,8 @@ is_anchored_at_the_target` asserts the loaded value), and a unit test. The body
 says which is which, so nothing is false in substance; the opening is.
 **Evidence:** Change 3's text.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** (orchestrator, as responder.) R-60's §7 row in `canon-delta.md` now opens "integration, built-binary and unit. Every case that drives a real backend loads its configuration and does so from a working directory that is **not** the configuration's." The body is unchanged. The person approved the phrase (`design-log.md` 2026-10-19, *F-21*).
 
 **Outcome:**
 
