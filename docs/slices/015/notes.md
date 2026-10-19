@@ -280,6 +280,253 @@ None: every case ships under §9's name in §9's file.
   socket, lock or config in a crate directory (the listener case clears and
   re-checks its strays).
 
+**Orchestrator re-measure at `571787b`** (2026-10-19): `just check` exit 0;
+M3 (01 half) re-run — `load` anchored at `path.parent()` — compiled, redded
+`working_directory::a_config_reached_through_a_linked_directory_is_anchored_at_the_target`
+only, restore clean. One doc nit for audit: `Config::parse`'s doc reads
+*"is the only caller that need"*.
+
+### PHASE-02 — the spawn
+
+Written by the orchestrator, 2026-10-19, at `571787b`; executed by a separate
+agent. Quotes the plan where it restates it; says so where it narrows.
+
+**Objective** (`plan.md` PHASE-02, quoted): *"a configured backend runs in its
+config's directory with `PWD` naming it, a relative program with a `/` is
+executed by its anchored path, and a spawn failure names where the program
+was looked for."*
+
+**Reading list**
+- `plan.md` §Sequencing & rationale (*Size* — the PARTIAL checkpoint;
+  *Natural-red evidence*; *Mutation evidence*; the M-table), §PHASE-02 entire.
+- `design.md` §5.2 (the `exchange` substance, **Errors**, the error table),
+  §5.5 (I-2, I-4), §7 D5, D10, D12, D13, §9 (the spawn rows, AC-2's row,
+  *Existing tests changed*).
+- `research.md` T2-3, T2-4, T2-9, T2-S1, T2-S2 (a script's `$0` is the path
+  `exec` received; `sh -c` with no operand gives argv[0]).
+- `review-design.md` F-7 (why `python3` for `PWD`), F-2 and R1-S2/F-18 (the
+  anchored-name witnesses); `review-plan.md` F-15 (VT-10, `settle-in-code`).
+- Code: `crates/goad-shell/src/backend/process.rs` (`ProcessBackend::exchange`);
+  `crates/goad-shell/src/error.rs` (`BackendError::Spawn`, `Display`,
+  `source`, `requirement`, `fault`, its tests);
+  `crates/goad-shell/tests/shape/transport_shape.rs`
+  (`the_only_spawn_is_the_child`); the Spawn sites named in Surfaces;
+  `crates/goad-shell/tests/integration/working_directory.rs` (PHASE-01's
+  file and `directory` helper — extend it); `tests/support/scripting.rs`
+  (`logging_backend`, `claim`); `tests/backends/answers-a-round-trip.sh` (a
+  conforming answer); `crates/goad-check/tests/kit/examples.rs`
+  (`handout`, `run_checker`); `round_trip.rs`
+  (`the_readme_s_own_config_loads_and_runs_the_example`,
+  `rooted_at_the_workspace`); `exercisers/typescript/README.md`.
+- PHASE-01's sheet above: its Findings (byte-exact path comparisons need
+  `OsStr`; `Path` equality ignores an interior `.`) apply here.
+
+**Surfaces — a closed list.** Anything outside it is a STOP.
+- `crates/goad-shell/src/backend/process.rs` — `ProcessBackend::exchange`
+  only.
+- `crates/goad-shell/src/error.rs` — `BackendError::Spawn`'s shape, its
+  `Display`, `source`, `requirement`, `fault` arms, and its tests (and the
+  enum's doc where it describes `Spawn`'s payload).
+- `BackendError::Spawn`'s other sites:
+  `crates/goad-shell/tests/integration/transport.rs`
+  (`a_command_that_does_not_exist_fails_to_spawn`),
+  `crates/goad-shell/tests/integration/failure_matrix.rs`
+  (`a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure`),
+  `crates/goad/tests/renderer/table.rs`,
+  `crates/goad-check/tests/kit/coverage.rs`.
+- `crates/goad-shell/tests/integration/working_directory.rs` — the spawn
+  cases (and its module doc).
+- `crates/goad-shell/tests/integration/round_trip.rs` —
+  `the_readme_s_own_config_loads_and_runs_the_example`, its doc, and
+  `rooted_at_the_workspace` (deleted, with any import it alone used);
+  `exercisers/typescript/README.md` (D10).
+- `crates/goad-check/tests/kit/examples.rs` (`run_checker` and its doc, the
+  module doc), `crates/goad-check/tests/kit/main.rs` (module doc),
+  `crates/goad-check/tests/kit/tree.rs` (`files`' doc).
+- `tests/support/scripting.rs` — `claim`'s doc only, and only if this phase
+  adds a helper of `claim`'s class. *(Narrowing note: `plan.md` PHASE-02
+  does not list this file. The sheet adds it on the same terms PHASE-01 and
+  PHASE-03 have, because extending `working_directory.rs`' existing
+  `directory` helper needs no edit; a new helper would. Prefer reusing
+  `directory`.)*
+- `docs/slices/015/notes.md` — this sheet, §Status, §Harvest.
+
+**Entry** — checked by the orchestrator before hand-over:
+- EN-1 ✔ PHASE-01 done; `git log -1` = `571787b` before this sheet's commit
+  (the sheet's commit follows it; your `log -1` will show the sheet commit).
+- EN-2 ✔ slice 012 `notes.md` §Status on `main`: PHASE-10 `pending`.
+
+**Assumptions**
+- *Verified at plan / by the orchestrator at `571787b`:* `ProcessBackend::new`
+  callers pass `config.backend.command` (T2-4), so the working directory
+  arrives with no `main.rs` edit. `exchange` builds `let mut command =
+  Command::new(&self.command.program);` and `command.spawn()` is the file's
+  only `spawn`. `BackendError::Spawn(io::Error)` is matched or built at
+  exactly: `error.rs` (`Display`, `source`, `requirement`, `fault`, its
+  tests), `process.rs`, `transport.rs`, `failure_matrix.rs`, `table.rs`,
+  `coverage.rs` (grep `Spawn` over `crates/`). Devshell has `python3`,
+  `bash`, `deno`; `sh` resolves to bash-interactive's `sh`.
+  `scripting::logging_backend` exists.
+- *First tested here:* that the copied devshell `sh` runs from a temp
+  directory (it is dynamically linked against absolute store paths — should
+  hold); that `$0` for `["./shell", "-c", …]` is the anchored path once
+  `Command::new(&executable)` is used; that `goad-check` reads `--event`
+  relative to its own working directory (so `examples.rs` passes
+  `example/events/…`); that VT-10's assertion (`working_directory: None`)
+  is red under M14 — **if M14 survives, `review-plan.md` F-15 returns
+  `contested`: record it under Findings and report it.**
+
+**STOP conditions**
+- a file or symbol outside Surfaces needs to change;
+- `ProcessBackend::new`'s signature or either binary's `main.rs` would need to
+  change (`design.md` §5.2, T2-4);
+- any test in `research.md` T2-9's *unaffected* list reds;
+- the prefix `backend could not be spawned: ` that `table.rs` asserts would
+  have to change;
+- a dependency would be added;
+- M14 survives (report, do not repair VT-10 into something else silently).
+
+**Exit criteria** (quoted from `plan.md`; none narrowed)
+- EX-1 — *"`exchange` builds `Command::new(&executable)` from
+  `self.command.executable()`, passes `arguments` as written, and when a
+  working directory is set applies `current_dir` and `env("PWD", …)`. No
+  `arg0`. The line `let mut command = Command::new(` survives, and
+  `command.spawn()` is still the file's only `spawn` (`transport_shape.rs`)."*
+- EX-2 — *"`BackendError::Spawn { executable, working_directory, source }`;
+  `Display` is `backend could not be spawned: {executable} (in
+  {working_directory}): {source}`, the parenthesis only when a directory is
+  set; `source()` returns `source`; `requirement()` is still R-44 and
+  `fault()` still `AtFault::Configuration`. Every site in Surfaces matches or
+  builds the new shape, and the prefix `table.rs` asserts is unchanged."*
+- EX-3 — *"the `working_directory.rs` spawn cases (VT-1..VT-6) green, each
+  seen red first."*
+- EX-4 — *"D10: the README's config is `["deno", "run", "-A", "backend.ts"]`,
+  its prose says the file is saved beside `backend.ts` and that a relative
+  path resolves against the config file's directory;
+  `rooted_at_the_workspace` is gone; the case parses with
+  `exercisers/typescript` as the directory and runs the README's config
+  unrewritten."*
+- EX-5 — *"AC-2: `run_checker` starts the checker in the hand-out **root**
+  with `--config example/config.toml` and `--event example/events/…`; the
+  test docs that described starting in the copy are true of the new start."*
+- EX-6 — *"M3's PHASE-02 half, M6–M10 and M13 run and recorded."* — plus
+  **M14** (VT-10's mutation; the plan's M-table assigns it to phase 02).
+- And `just check` exits 0 on the phase's final commit.
+
+**Verification** — the cases, quoted in substance from `plan.md` VT-1..VT-10,
+VA-1. Names are commitments (`design.md` §9); a rename goes in *Renames*.
+- VT-1 `a_relative_argument_resolves_beside_the_config_from_another_directory`
+- VT-2 `a_linked_config_runs_its_backend_beside_the_target` (decoy beside the
+  link answers differently and is not the one run)
+- VT-3 `a_relative_program_with_a_slash_is_executed_as_the_anchored_path`
+- VT-4 `a_native_program_receives_its_anchored_path_as_its_name`
+- VT-5 `the_backend_s_pwd_names_its_working_directory` (`python3`; reds on
+  the `PWD` assertion against PHASE-01's tree — not on a spawn failure)
+- VT-6 `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for`
+- VT-7 `round_trip.rs::the_readme_s_own_config_loads_and_runs_the_example`
+- VT-8 `examples.rs::each_shipped_example_is_accepted_by_the_checker` and
+  `::downloads_triage_moves_the_file_it_was_asked_about`
+- VT-9 `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable`
+  (not a §9 name: record it under *Renames/additions* for audit)
+- VT-10 `transport.rs::a_command_that_does_not_exist_fails_to_spawn` gains
+  `working_directory: None` (settles `review-plan.md` F-15)
+- VA-1 `transport.rs`' and `failure_matrix.rs`' spawn cases still assert
+  what they asserted (`NotFound`; the configuration's side); only the match
+  shape changed.
+
+**Notes for the implementer** — `plan.md`'s, lifted in; read every one.
+1. **Order.** Write VT-1..VT-6, change VT-7's and VT-8's tests first; run
+   against PHASE-01's tree (spawn ignores the working directory); record
+   each red and the assertion it failed on. VT-6 needs the new `Spawn` shape
+   to compile: change `error.rs` and its sites first with `process.rs`
+   filling `executable` from the program **as written** and
+   `working_directory: None`; see VT-6 red; then EX-1.
+2. **Every spawn case loads its config from a file with `Config::load`**, in
+   a temp directory of its own; the test process's working directory (the
+   crate) is never the config's.
+3. **VT-4:** resolve `sh` at test time by running `sh -c 'command -v sh'` and
+   canonicalizing the answer, so the copy is the real binary, not a link;
+   `std::fs::copy` keeps the mode. For `sh -c` with no operand, `$0` is
+   argv[0].
+4. **VT-5 uses `python3`**, which exposes an inherited `PWD` as is; a shell
+   would repair a stale one and hide the regression.
+5. **Fixtures are written by the case**, not committed: a script body in the
+   test file, written beside the config and made executable. Logging scripts
+   write to a marker path passed as an argument, as
+   `scripting::logging_backend` does; a backend that must answer
+   conformingly answers as `tests/backends/` scripts do.
+6. **Negative controls compile.** VT-2's decoy is a real script in the same
+   case, runnable, answering differently — never a commented-out variant.
+7. **D10's README** is the test's input: prose and fence change in the commit
+   that changes the case. Keep the README's *host exerciser, not a template*
+   framing.
+8. **`examples.rs`**: `downloads_triage_moves_the_file_it_was_asked_about`
+   calls `run_checker` too. `--event` paths gain the `example/` prefix; only
+   `--config`'s directory moves the backend.
+9. **`coverage.rs`** builds a `Spawn` to enumerate kinds; give it a
+   directory-less value unless the case needs one.
+10. **No new identifier in `process.rs`'s code contains `spawn`** in lower
+    case (`transport_shape.rs::the_only_spawn_is_the_child` counts the token;
+    strings and comments are stripped first).
+11. **Byte-exact path assertions compare `OsStr`** (PHASE-01 Finding).
+    Compare against `std::fs::canonicalize` of the directory, never the path
+    as built.
+12. **Checkpoint.** If the session runs long, stop after EX-3 (goad-shell
+    tier green), commit `PARTIAL` with *where I stopped*, leaving
+    `examples.rs` and D10. That is the plan's named checkpoint, not a
+    re-plan.
+13. Cite by symbol, never line number; name, never count.
+
+**Tasks**
+- [ ] Print `git log -1 --oneline`; record it. §Status PHASE-02 `in progress`.
+- [ ] `Spawn` new shape through `error.rs` + every site; `process.rs` fills
+      program-as-written / `None`; gate compiles.
+- [ ] VT-1..VT-6 written; VT-7 (D10 test side, `rooted_at_the_workspace`
+      deleted) and VT-8 (`run_checker` from the root) changed; red runs
+      recorded.
+- [ ] EX-1 in `exchange`; VT-1..VT-6 green.  ← PARTIAL checkpoint if needed
+- [ ] D10's README; VT-7 green. VT-8 green; test docs true (EX-5).
+- [ ] VT-9, VT-10 (each seen red as the plan says).
+- [ ] Refactor step.
+- [ ] M3 (02 half), M6–M10, M13, M14 recorded; `git status` clean after each.
+- [ ] VA-1 recorded.
+- [ ] `just check` exits 0; §Status PHASE-02 `done`; §Harvest; commit.
+
+**Natural-red evidence**
+
+| case | command | failed on (assertion, and why it matches §9) |
+|---|---|---|
+| VT-1 `a_relative_argument_resolves_beside_the_config_from_another_directory` | | |
+| VT-2 `a_linked_config_runs_its_backend_beside_the_target` | | |
+| VT-3 `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` | | |
+| VT-4 `a_native_program_receives_its_anchored_path_as_its_name` | | |
+| VT-5 `the_backend_s_pwd_names_its_working_directory` | | |
+| VT-6 `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | | |
+| VT-7 `the_readme_s_own_config_loads_and_runs_the_example` | | |
+| VT-8 `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | | |
+| VT-9 `a_spawn_failure_with_no_working_directory_names_only_the_executable` (red against a `Display` printing the parenthesis always) | | |
+
+**Mutation evidence** — `--no-fail-fast`; scratchpad copy, edit, run, copy
+back; `git status` clean after each. Not compiled = not evidence.
+
+| id | edit (behaviour removed) | must red | command | compiled? | redded (name · assertion) | restore green? |
+|---|---|---|---|---|---|---|
+| M3 (02 half) | `load` anchors at the path's parent as given | `a_linked_config_runs_its_backend_beside_the_target` (the decoy answers) | | | | |
+| M6 | no `current_dir` (`PWD` still set) | `a_relative_argument_resolves_beside_the_config_from_another_directory`; `a_linked_config_runs_its_backend_beside_the_target`; `examples.rs::each_shipped_example_is_accepted_by_the_checker` | | | | |
+| M7 | the platform's route: `Command::new(&self.command.program)` with `current_dir` | `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` (`$0` relative); `a_native_program_receives_its_anchored_path_as_its_name` | | | | |
+| M8 | `arg0(&self.command.program)` added to the anchored spawn | `a_native_program_receives_its_anchored_path_as_its_name` **only** — the script case stays green (D5's point; record that it stayed green) | | | | |
+| M9 | no `PWD` | `the_backend_s_pwd_names_its_working_directory` | | | | |
+| M10 | `Spawn`'s `working_directory` is `None` for a configured command | `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | | | | |
+| M13 | `Spawn`'s `Display` prints the parenthesis whatever the directory | `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` | | | | |
+| M14 | the spawn fills `Spawn`'s `working_directory` from `current_dir()` for a command with none | `transport.rs::a_command_that_does_not_exist_fails_to_spawn` | | | | |
+
+**Renames / additions** — §9's name · symbol shipped · file.
+- VT-9 is an addition (not in §9): `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable`.
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Owed
 
 Manual steps no phase's code reaches; each a box, ticked with who did it and
