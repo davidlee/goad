@@ -4,7 +4,7 @@
 `slice-015` (code, tests, kit prose, exercisers, repo files)
 **Reviewer:** fresh agent, Opus
 **Opened:** 2026-10-19
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -578,7 +578,7 @@ each checked against the file as it stood when the citation was written:
 cited `config.rs:226` (from `0ffedc8`), now
 `tests::a_configuration_is_read_from_a_file_and_a_missing_one_says_so`.
 
-**Outcome:**
+**Outcome:** verified (mechanical, orchestrator, per `design-log.md` 2026-10-19 *code review round 2, residues, and canon promotion*) — the named docs and `anchored` are wrapped; the line-citation sweep over every slice-touched file prints nothing at `8d44146`; the comment-stripped diff over `crates/goad-shell/src/` from `3287846` is empty.
 
 ### F-12 — `audit.md`'s AC-5 row still says the `goad-emit` case starts in `temp_dir()`
 
@@ -604,7 +604,7 @@ configuration's; no `--socket`"*, as `exchange.rs` —
 (`emit_from(&start, &home, …)`). *Leads for the code reviewer* is left as
 history, as the finding says.
 
-**Outcome:**
+**Outcome:** verified (mechanical, orchestrator) — `audit.md`'s AC-5 row names the case's own start directory.
 
 ### F-13 — `canon-delta.md` §6.4 keeps the *under* that F-9 repaired in the kit, with no row
 
@@ -631,7 +631,7 @@ directory"*, the person's words exactly. The **Status** line records the
 amendment. §6.4 does not restate R-60's `.`-dropping rule, by the person's
 decision.
 
-**Outcome:**
+**Outcome:** verified (mechanical, orchestrator) — `canon-delta.md` §6.4 and SPEC-001 §6.4 read *"is resolved against the backend's working directory"*, the decided words.
 
 ## Synthesis
 

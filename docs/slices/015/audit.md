@@ -199,13 +199,13 @@ Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
 vocabulary, subject `implementation`. Do not restate findings here.
 
-- **Ledger:** `review-code.md`, subject `implementation`. Two rounds, each by
-  a fresh reviewer; the leads at the foot of this file seeded the first.
+- **Ledger:** `review-code.md`, subject `implementation`. Two rounds by one
+  fresh reviewer, kept across both; the leads at the foot of this file seeded the first.
   Rounds stopped on the measured trend — two rounds, no code defect — in
   favour of mechanical verification (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*).
-- **State:** resolved · outstanding blockers: none. F-11, F-12 and F-13 are
-  repaired and their Outcomes are pending mechanical verification by the
-  orchestrator.
+- **State:** resolved · outstanding blockers: none. Every finding
+  `verified`; F-11, F-12 and F-13 verified mechanically by the
+  orchestrator at `8d44146`.
 
 ## Verdict
 
