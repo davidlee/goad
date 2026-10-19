@@ -574,6 +574,228 @@ back; `git status` clean after each. Not compiled = not evidence.
 - No crate-directory litter after the red runs (`git status` clean; the
   kit's hand-outs and the cases' directories are under `temp_dir()`).
 
+**Orchestrator re-measure at `934933f`** (2026-10-19): `just check` exit 0;
+M7 re-run — `Command::new(&self.command.program)` — compiled, redded
+`a_relative_program_with_a_slash_is_executed_as_the_anchored_path` and
+`a_native_program_receives_its_anchored_path_as_its_name` only (integration
+target), restore clean. For audit: `process.rs` and `error.rs` docs cite
+`SPEC-001/R-60` ahead of promotion (as `design.md` §5.2's own doc does); the
+merge carries the promotion, but audit confirms none of it reaches `main`
+unpromoted.
+
+### PHASE-03 — the checker's pins, and the kit's prose
+
+Written by the orchestrator, 2026-10-19, at `934933f`; executed by a separate
+agent. Quotes the plan where it restates it; says so where it narrows.
+
+**Objective** (`plan.md` PHASE-03, quoted): *"`goad-check`'s built binary is
+pinned to find a bare program on `PATH` and to run the argv form from the
+caller's directory, and the kit states the new rule with no *make every path
+absolute* advice."*
+
+**Reading list**
+- `plan.md` §Sequencing & rationale (*Mutation evidence*, M11, M12),
+  §PHASE-03 entire.
+- `design.md` §5.5 (*Edge — bare program*, *read-only config directory*,
+  *long socket path*, *the argv form*), §7 D6, D8, §9 (the two `run.rs` rows;
+  AC-3's row), §10 (*Not canon, repaired in the slice*).
+- `canon-delta.md` — R-60 and R-17's wording, **to state the rule
+  accurately in prose; never cite the ids** (Note 1).
+- `research.md` T2-11 (what the kit says today).
+- `review-design.md` F-5 (why the `PATH` case is on the built-binary tier),
+  F-8 (why READMEs keep *copy this directory out*).
+- Code: `crates/goad-check/tests/binary/run.rs` (its `logging` helper,
+  `scripting` use), `crates/goad-check/tests/binary/process.rs` (`check`,
+  `fixture` — no helper takes an env or a working directory today);
+  `tests/support/scripting.rs` (`claim`); `tests/backends/` (conforming
+  answers); `crates/goad-check/tests/kit/{tagged,standalone,examples}.rs`
+  (the kit's own gate).
+- Kit: `kit/skills/goad-backend/reference/{running,checking,events}.md`; the
+  three examples' `config.toml`, `README.md`; `downloads-triage/watch.sh`;
+  `breadcrumbs/chpwd.zsh`.
+- PHASE-01's and PHASE-02's Decisions and Findings above.
+
+**Surfaces — a closed list.** Anything outside it is a STOP.
+- `crates/goad-check/tests/binary/run.rs` — the pins VT-1 and VT-2 (and a
+  local temp-root helper); `crates/goad-check/tests/binary/process.rs` — a
+  spawn helper taking an environment and a working directory, if the cases
+  need one.
+- `tests/support/scripting.rs` — `claim`'s doc only, if a helper here is
+  held by `claim`.
+- `kit/skills/goad-backend/reference/running.md` (*Name your command* —
+  SPEC-001/R-36's section — and the config table's `ingress.path` row),
+  `reference/checking.md` (the relative-path paragraph, and the argv form's
+  rule, OQ-5), `reference/events.md` (`goad-emit`'s socket rule and its
+  `--socket ./goad.sock` example).
+- `kit/skills/goad-backend/examples/{breadcrumbs,downloads-triage,focus-check}/config.toml`
+  — the opening comment only; no value changes (`research.md` T2-11).
+- `kit/skills/goad-backend/examples/{breadcrumbs,downloads-triage,focus-check}/README.md`,
+  including each README's `toml goad:config` fence, which quotes its
+  `config.toml` and its comment verbatim; `examples/downloads-triage/watch.sh`
+  (header); `examples/breadcrumbs/chpwd.zsh` (header) only if VA-2 classes it
+  stale.
+- `docs/slices/015/notes.md` — this sheet, §Status, §Harvest.
+
+**Entry** — checked by the orchestrator before hand-over:
+- EN-1 ✔ PHASE-02 done (`934933f`), re-measured above.
+- EN-2 ✔ `git merge main` in the worktree: *Already up to date* — `main`
+  has no commit past `c68a624`, so the kit is 015's base text and the gate
+  result above stands. Slice 012 `notes.md` §Status on `main`: PHASE-10
+  `pending`.
+
+**Assumptions**
+- *Verified at plan / by the orchestrator:* the example configs' values are
+  already config-relative (T2-11) — only their comments and the READMEs'
+  prose state the old rule. Today's comments: breadcrumbs and
+  downloads-triage *"`command` and the socket are relative to this directory:
+  run goad and goad-check from here."*; focus-check *"`command` is relative to
+  this directory: run goad and goad-check from here."* VA-1's grep today has
+  hits in `kit/` (the orchestrator counted them only to confirm the grep
+  reaches; classify each). `run.rs` already uses `crate::scripting`, so
+  `claim` reaches a helper there. `process.rs::check` takes arguments only.
+  Every `toml` fence in the kit goes through `Config::parse`
+  (`tagged.rs::every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`),
+  and `standalone.rs::nothing_in_the_kit_names_a_path_outside_it` forbids a
+  path outside `kit/`.
+- *First tested here:* that `#!/bin/sh` decoys using builtins only run with
+  `PATH` = `<root>/path` alone (the kernel resolves the shebang); that
+  `goad-check -- ./backend.sh` started in a directory holding it is judged
+  (PHASE-02 left the argv form's `None` untouched, so it should be green on
+  arrival).
+
+**STOP conditions**
+- a file or symbol outside Surfaces needs to change;
+- either pin is red on arrival (it is a pin: red means PHASE-01/02 code is
+  wrong — report it, do not adjust the pin);
+- a kit rule would be left ambiguous (no merge happened, but the same applies
+  if the new rule cannot be stated without contradicting surrounding kit text);
+- a kit edit would need a new `### SPEC-…` heading or a citation of `R-60` /
+  `R-17`;
+- a dependency would be added.
+
+**Exit criteria** (quoted from `plan.md`; none narrowed)
+- EX-1 — *"`run.rs` holds the pins VT-1 and VT-2; M11 and M12 run and
+  recorded."*
+- EX-2 — *"`running.md` says: the backend runs in the config file's
+  directory, through any links; arguments are passed as written; a relative
+  program with a `/` is found beside the config and receives that path as
+  its name; a bare name is looked up on `PATH`, after the change of
+  directory, so a relative `PATH` entry names a directory under it; a spawn
+  failure names the path tried and the directory. Its `ingress.path` row
+  says relative to the config file's directory, and states the socket-path
+  limit (107 bytes on Linux) and the remedy (an absolute path somewhere
+  short, such as `$XDG_RUNTIME_DIR`). It says the rule changed."*
+- EX-3 — *"`checking.md` says `--config` runs the backend as goad will, from
+  any directory; the argv form runs from the caller's directory (OQ-5)."*
+- EX-4 — *"`events.md`: `goad-emit` without `--socket` resolves a relative
+  `ingress.path` as goad does; its `--socket` path is used as given,
+  relative to where `goad-emit` runs."*
+- EX-5 — *"each example README keeps *copy this directory out*, now for its
+  reason: the socket and its lock are written beside the config, and an
+  installed kit is read-only (`design.md` §5.5, F-8). *Run goad from this
+  directory* and *make both absolute* are gone; a copy needs no edit to its
+  config. `watch.sh`'s header is true from any directory."*
+- EX-6 — *"each example `config.toml`'s opening comment states the new rule
+  — `command` and the socket are relative to this file's directory, from
+  wherever goad or `goad-check` is started — and no longer says *run … from
+  here*; each README's `goad:config` fence quotes its `config.toml` as the
+  file now reads, comment included."* (focus-check has no socket: its comment
+  names `command` only, as today.)
+- And `just check` exits 0 on the phase's final commit.
+
+**Verification** (quoted in substance from `plan.md`)
+- VT-1 — `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`:
+  under the case's temp root, `config/config.toml` with `command =
+  ["goad-decoy", <log>]`; `config/goad-decoy` and `path/goad-decoy`, each
+  `#!/bin/sh` using builtins only, each appending its own label (`beside`,
+  `from-path`) and answering conformingly; `goad-check --config
+  config/config.toml` run with `PATH` = `<root>/path` on that child alone and
+  its working directory `<root>`. The log has at least one line and every
+  line is `from-path`. A pin; M11 reds it.
+- VT-2 — `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory`:
+  `goad-check -- ./backend.sh` started in a directory holding it is judged. A
+  pin; M12 reds it.
+- VT-3 — the kit tier green: `tagged.rs::every_json_and_toml_fence_in_the_kit_is_tagged_and_checked`
+  over every edited fence, `standalone.rs::nothing_in_the_kit_names_a_path_outside_it`,
+  and `examples.rs`.
+- VA-1 — AC-3's kit half: `git grep -n -i 'absolute\|started in\|working
+  directory\|from this directory\|from here\|relative to this directory\|run
+  goad' -- kit` recorded below, each hit classed as true under the new rule
+  or repaired. No hit advises making a path absolute, or running from a
+  directory, to work around where goad was started.
+- VA-2 — `chpwd.zsh`'s header (*add `--socket` with the absolute path*)
+  classed: `goad-emit`'s `--socket` is used as given, so the advice may still
+  be true; recorded either way.
+- VA-3 — each README's `goad:config` fence byte-identical to its
+  `config.toml` (a `diff` of the fence body against the file, recorded).
+
+**Notes for the implementer** — `plan.md`'s, lifted in.
+1. **Cite no draft id in the kit.** `R-60` and `R-17` are not canon until
+   audit. State the rule in prose under the existing `SPEC-001/R-36` heading
+   and the config table. No new `### SPEC-…` heading: `coverage.rs` counts
+   headings by id.
+2. **The `PATH` case is on the built-binary tier on purpose**: `PATH`
+   reaches the backend only through `Command::env` on the `goad-check`
+   child. Decoys use builtins only (`read`, `printf`, redirection); `#!/bin/sh`
+   is resolved by the kernel, not `PATH`. "Answering conformingly" means each
+   answers every kind the checker sends with a response it accepts, as
+   `tests/backends/` scripts do; the assertion is on the log, not on the
+   verdict. Set `PATH` (and the working directory) on that child only; never
+   `std::env::set_var`.
+3. **The temp root** for both cases: one local helper in `run.rs`, held by
+   `scripting::claim` under a kind of its own, a name ending in a non-digit
+   suffix after the pid (PHASE-01's `.d` convention), and `claim`'s doc
+   updated **by name** (PHASE-01 rewrote it to name every helper; add yours,
+   no count).
+4. **Kit prose is product text.** Short, second person, as the reference
+   already reads. Every `toml` fence keeps its `goad:config` tag and must
+   parse; nothing may name a path outside `kit/`. Write it for a person who
+   has never read this slice: say what happens, not what changed in which
+   slice (EX-2's *"It says the rule changed"* is one plain sentence for
+   readers of older configs, not a history).
+5. **M11 and M12 mutate PHASE-01/02 code** (`config.rs::Command::executable`;
+   the argv form's `working_directory` in `goad-check`'s `from_argv` path, or
+   `process.rs`) under copy-and-restore; nothing committed outside Surfaces.
+6. Cite by symbol, never line number; name, never count — in kit prose too
+   (*"each example"*, not *"the three examples"*).
+
+**Tasks**
+- [ ] Print `git log -1 --oneline`; record it. §Status PHASE-03 `in progress`.
+- [ ] VT-1, VT-2 written; green on arrival (pins); recorded.
+- [ ] M11, M12 recorded.
+- [ ] `running.md` (EX-2), `checking.md` (EX-3), `events.md` (EX-4).
+- [ ] Example `config.toml` comments (EX-6) and README fences + prose (EX-5),
+      `watch.sh` header; VA-2 on `chpwd.zsh`.
+- [ ] VT-3 (kit tier green), VA-1 grep classified, VA-3 diffs recorded.
+- [ ] Refactor/re-read pass over every edited kit paragraph.
+- [ ] `just check` exits 0; §Status PHASE-03 `done`; §Harvest; commit.
+
+**Pin evidence** (green on arrival)
+
+| case | command | result |
+|---|---|---|
+| VT-1 `a_program_with_no_slash_is_found_on_path_not_beside_the_config` | | |
+| VT-2 `the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | | |
+
+**Mutation evidence**
+
+| id | edit (behaviour removed) | must red | command | compiled? | redded (name · assertion) | restore green? |
+|---|---|---|---|---|---|---|
+| M11 | `executable` anchors every relative program, `/` or not | `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config` (`beside` lines); also `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | | | | |
+| M12 | the argv form is given a working directory other than the caller's | `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | | | | |
+
+**VA-1 — grep hits, classed**
+
+**VA-2 — `chpwd.zsh`**
+
+**VA-3 — fence vs file**
+
+**Renames / additions**
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Owed
 
 Manual steps no phase's code reaches; each a box, ticked with who did it and
