@@ -226,6 +226,7 @@ The mutations, by the row they hold. Each must red the cases named.
 | M13 | `Spawn`'s `Display` prints the parenthesis whatever the directory | `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` | 02 |
 | M11 | `executable` anchors every relative program, `/` or not | `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config` (`beside` lines); also `the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | 03 |
 | M12 | the argv form is given a working directory other than the caller's | `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | 03 |
+| M14 | the spawn fills `Spawn`'s `working_directory` from `current_dir()` for a command with none | `transport.rs::a_command_that_does_not_exist_fails_to_spawn` | 02 |
 
 M11 and M12 mutate PHASE-01 and PHASE-02 code from PHASE-03; that is
 permitted under the scratchpad copy-and-restore rule and touches nothing
@@ -236,7 +237,7 @@ committed.
 | AC | discharged by |
 |----|---------------|
 | AC-1 | PHASE-01/VT-1, VT-2, VT-3, VT-6 (the resolution, the executable table, the dangling-link pin, the directory-link value); PHASE-02/VT-1..VT-6 (every spawn case); PHASE-03/VT-1 (`PATH` pin); PHASE-04/VH-1 (through a link, by a person) |
-| AC-2 | PHASE-02/VT-8 (the kit examples, checker started outside them); PHASE-02/VT-9 (the argv form's spawn report names no directory); PHASE-03/VT-2 (argv form) and VA-1 (`checking.md` states both) |
+| AC-2 | PHASE-02/VT-8 (the kit examples, checker started outside them); PHASE-02/VT-9 (a `Spawn` with no working directory names none) and VT-10 (the argv form's spawn failure carries none); PHASE-03/VT-2 (argv form) and VA-1 (`checking.md` states both) |
 | AC-3 | kit half: PHASE-03/EX-6, VA-1, VA-2, VA-3; canon half: **audit**, by promoting `canon-delta.md` (§Owed) |
 | AC-4 | PHASE-04/VH-1; **recorded in `audit.md` §Evidence** |
 | AC-5 | PHASE-01/VT-1, VT-4, VT-5 (goad's listener; `goad-emit`'s binary and unit cases); PHASE-04/VH-1 (`just emit` reaches the demo) |
@@ -380,7 +381,7 @@ alike, wherever each was started.
   would be dead code in `event_loop_schedule`, which includes the file and
   would not use it. `claim`'s doc enumerates the helpers of its class and
   **counts** them, and the count is already short: run `claim`'s own grep
-  (`grep -rn 'process::id()' --include=*.rs .`) and rewrite the sentence to
+  (`grep -rn 'process::id()' --include=*.rs . | grep -v '^./target'`) and rewrite the sentence to
   **name** every helper of the class it finds, held and unheld — among them
   `crates/goad-check/tests/kit/examples.rs::handout` and
   `crates/goad/tests/binary/exit_codes.rs::scratch_config`, which it misses
@@ -508,6 +509,10 @@ and a spawn failure names where the program was looked for.
   naming the executable and containing no `(in `. Seen red against a
   `Display` that prints the parenthesis whatever the directory; M13 reds it.
   Not a §9 name: recorded in the sheet as an addition, for audit.
+- VT-10 — `transport.rs::a_command_that_does_not_exist_fails_to_spawn`
+  also asserts the `Spawn` it reaches carries `working_directory: None`, for
+  a command with none (the argv form's shape): the spawn fills nothing in from
+  the caller. M14 reds it. Settles `review-plan.md` F-15.
 - VA-1 — `transport.rs`'s and `failure_matrix.rs`' spawn cases still assert
   what they asserted (`NotFound`; the configuration's side); only the match
   shape changed.
@@ -687,8 +692,8 @@ seen it.
   kit-example paragraph's reason (F-9).
 - `docs/memory/path-flake-ref-breaks-on-demo-socket.md` — the socket's
   location and the general form's wording; its conclusion stands (X-4).
-- `crates/goad-shell/tests/integration/round_trip.rs` — `shell_example`'s
-  doc only, which says its argv is the one `demo.toml` names and runs the
+- `crates/goad-shell/tests/integration/round_trip.rs` — written by
+  PHASE-01 and PHASE-02 as well; here `shell_example`'s doc only, which says its argv is the one `demo.toml` names and runs the
   exerciser exactly as the demo does; after EX-1 neither holds as written.
 - `docs/slices/015/notes.md` (including §Owed and §Open).
 

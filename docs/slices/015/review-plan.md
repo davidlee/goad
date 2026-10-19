@@ -110,9 +110,9 @@ Written by the orchestrator before the review. Surfaces to attack:
 | F-12 | nit | doc-wrong | verified |
 | F-13 | nit | doc-wrong | verified |
 | F-14 | nit | doc-wrong | verified |
-| F-15 | minor | | |
-| F-16 | nit | | |
-| F-17 | nit | | |
+| F-15 | minor | settle-in-code | |
+| F-16 | nit | doc-wrong | |
+| F-17 | nit | doc-wrong | |
 
 Round 1 raised by a fresh Opus agent acting as **raiser** only: severity set,
 Disposition, Response and Outcome left blank. Plan read at `3190648`, tree at
@@ -554,8 +554,8 @@ one piece of evidence twice.
 `crates/goad-shell/tests/integration/transport.rs::a_command_that_does_not_exist_fails_to_spawn`
 (builds `Command::new(...)`, so `None`).
 
-**Disposition:**
-**Response:**
+**Disposition:** settle-in-code
+**Response:** (orchestrator, as responder; past the two-round cap.) PHASE-02/VT-10: `transport.rs::a_command_that_does_not_exist_fails_to_spawn` also asserts `working_directory: None`; mutation M14 fills it from `current_dir()` and must red it. The AC-2 coverage row now credits VT-9 with the `Display` only and VT-10 with the argv form. A case that survives M14 returns this finding `contested`.
 
 **Outcome:**
 
@@ -575,8 +575,8 @@ sequence, but the stated rule is applied to one file and not the other.
 
 **Evidence:** `plan.md` PHASE-01, PHASE-02 and PHASE-04 Surfaces.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** PHASE-04's Surfaces entry for `round_trip.rs` now says PHASE-01 and PHASE-02 write it too.
 
 **Outcome:**
 
@@ -596,8 +596,8 @@ one it is told it is running.
 
 **Evidence:** `tests/support/scripting.rs::claim` doc, the fenced grep.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The quoted grep now carries `| grep -v '^./target'`, as `claim`'s doc does.
 
 **Outcome:**
 

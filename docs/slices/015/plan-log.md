@@ -25,3 +25,12 @@ entry; supersede it with a later one.
   re-run AC-4 after audit repairs touching config or the spawn; the nits as
   raised.
 - **Decided:** "confirm".
+
+### 2026-10-19 — the last findings, and acceptance
+
+- **Asked:** dispositions past the cap for `review-plan.md` F-15
+  (settle-in-code, PHASE-02/VT-10 with M14), F-16 and F-17 (doc-wrong, one
+  line each); and acceptance of the plan.
+- **Decided:** "yeah i'm down with it" — dispositions confirmed and the plan
+  accepted. Execution is orchestrated from a handover
+  (`handover-execution.md`).

@@ -1,6 +1,6 @@
 # Slice 015: a config travels with its backend
 
-**Stage:** design
+**Stage:** planned
 **Tier:** 2 (full) — it adds a rule to SPEC-001, which states nothing today
 about where a backend command runs.
 **Depends on:** nothing, to ship. Code and its kit and exerciser prose land
