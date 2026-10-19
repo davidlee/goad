@@ -1,5 +1,5 @@
-# `command` and the socket are relative to this directory: run goad and
-# goad-check from here.
+# `command` and the socket are relative to this file's directory, wherever
+# goad or goad-check is started.
 [backend]
 command = ["deno", "run", "--allow-read", "--allow-write", "--allow-env=HOME,XDG_STATE_HOME", "backend.ts"]
 timeout = "30s"

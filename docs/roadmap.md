@@ -150,6 +150,13 @@ updates the surface, and its verification reads the window rather than the
 retained model. A person flooded the running host and saw the window stay
 responsive. What the surface retains is still FU-3's.
 
+**2026-10-19.** Slice 015 is closed. A configuration and its backend move
+together as one directory: the backend runs in the configuration file's own
+directory, through any links, and a relative `[ingress] path` is beside the
+file, so goad, `goad-check --config` and `goad-emit` agree wherever each is
+started. SPEC-001/R-60 and SPEC-003/R-17 state it. A person ran the demo from
+another directory and through a link. Its follow-ups extend existing rows.
+
 **The slices from here are thinner, and most are tier 1** (`docs/AGENTS.md`
 §Tiers): capped design surface, design and plan reviewed in one two-round
 ledger, code review unchanged. 49,631 lines of slice documentation for 16,891
@@ -180,6 +187,7 @@ graph LR
   S12["012<br/>the backend<br/>author's kit"]
   S13["013<br/>stratum 3 joins<br/>the allowlist"]
   S14["014<br/>socket transport"]
+  S15["015 ✔<br/>a config travels<br/>with its backend"]
 
   T2{{"ADR-002 T2<br/>second binary"}}
 
@@ -187,11 +195,12 @@ graph LR
   S10 --> S11 --> S12 --> S13 --> S14
   T2 -.-> S5
   USE -.->|field notes| S7
+  S12 -.->|walks| S15
 
   classDef done fill:#2d5016,stroke:#4a7c26,color:#fff
   classDef trigger fill:#5c4317,stroke:#8a6620,color:#fff
   classDef use fill:#1f3d5c,stroke:#3a6ea5,color:#fff
-  class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 done
+  class S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S15 done
   class T2 trigger
   class USE use
 ```
@@ -210,6 +219,7 @@ graph LR
 | 012 the backend author's kit | 2 | the wire contract has stood still since 007 and is what backends are written against; the next user is an agent writing one. Tier 2 because a new binary enters SPEC-004's scope |
 | 013 stratum 3 joins the allowlist | 2 | tier 2 by construction — one manifest row plus a POL-001 §Verification amendment. The smallest of the three, and it waited on daily use to show whether stratum 3 drifts |
 | 014 socket transport | 2 | touches SPEC-001's transport section, so it is canon-changing by construction |
+| 015 a config travels with its backend ✔ | 2 | found by 012's walks: every config needed absolute paths. Taken beside 012 because it amends SPEC-001 and the kit states the rule |
 
 Changes from the old order, all deliberate:
 
@@ -652,12 +662,15 @@ semantic protocol is identical across transports — SPEC-001 already says so.
   nothing, or for brief §10.1/§10.2 through a real process (FU-36). Both are held
   at other tiers today. If this slice rebuilds the failure matrix, add them.
 
-### 015 — a config travels with its backend
+### 015 — a config travels with its backend ✔
 
-From 012's walks (`docs/slices/012/walks.md` W0-6). **Tier 2** — it adds a
-rule to SPEC-001, which says nothing today about where a backend command
-runs. Opened 2026-10-19, beside 012, which is still open; its `kit/` edits
-wait for 012's PHASE-10.
+From 012's walks (`docs/slices/012/walks.md` W0-6). **Tier 2** — it added
+SPEC-001/R-60 and SPEC-003/R-17. Opened 2026-10-19, beside 012, which is
+still open; **closed 2026-10-19**, ahead of 012, from its own branch.
+`docs/slices/015/` carries the record, `slice-015.md` §Summary the closing
+argument and §Follow-ups what outlived it. The entry below is the scoping
+argument as it stood: the `kit/` edits did not wait for 012's PHASE-10, and
+SPEC-001 carries R-60 with no R-59 until 012's audit.
 
 A relative path in `command` resolves against the directory goad was started
 in, so every config SATAN wrote uses absolute paths. The candidate fix is

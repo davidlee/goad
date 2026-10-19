@@ -61,7 +61,17 @@ impl Backend for ProcessBackend {
                 in this crate, not a backend outcome, and must not be reported as one (F-3)"
     )]
     let payload = serde_json::to_vec(request).unwrap();
-    let mut command = Command::new(&self.command.program);
+    // The path the program is executed by is the name it receives: no `arg0`,
+    // because a script's `$0` is the path `exec` was given whatever argv[0]
+    // says, so one rule covers a script and a native program alike
+    // (SPEC-001/R-60; slice 015's D5).
+    let executable = self.command.executable();
+    let mut command = Command::new(&executable);
+    if let Some(directory) = &self.command.working_directory {
+      // `current_dir` leaves `PWD` as inherited, and a runtime that is not a
+      // shell reads it as is (slice 015's D12).
+      command.current_dir(directory).env("PWD", directory);
+    }
     command
       .args(&self.command.arguments)
       .stdin(Stdio::piped())
@@ -77,7 +87,13 @@ impl Backend for ProcessBackend {
     // nothing was spawned.
     let mut child = match command.spawn() {
       Ok(child) => child,
-      Err(error) => return Exchange::failed(BackendError::Spawn(error)),
+      Err(source) => {
+        return Exchange::failed(BackendError::Spawn {
+          executable,
+          working_directory: self.command.working_directory.clone(),
+          source,
+        });
+      }
     };
     let (Some(stdin), Some(stdout), Some(stderr)) =
       (child.stdin.take(), child.stdout.take(), child.stderr.take())

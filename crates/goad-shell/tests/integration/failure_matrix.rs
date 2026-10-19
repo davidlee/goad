@@ -403,12 +403,14 @@ async fn the_same_backend_told_to_behave_is_accepted() {
 // caller of `Host` is handed, which is a `Failure` on an `Outcome` beside a
 // `next_check` that a failure may not have moved (R-29, EX-3). Three of the
 // five below — the timeout, the non-zero exit and the malformed body — are
-// EX-3's own list, and `host.rs:298` makes that claim against a fake.
+// EX-3's own list, and `host.rs::no_failure_moves_the_schedule` makes that
+// claim against a fake.
 //
 // The two remaining EX-4 modes, a stale and an unknown `view_id`, are already
-// asserted through a `Host` over the real transport at `round_trip.rs:220` and
-// `:257`, with an invocation-log witness that no process was spawned. Nothing
-// here repeats them.
+// asserted through a `Host` over the real transport by
+// `round_trip.rs::an_answer_no_view_asked_for_never_reaches_the_backend` and
+// `::a_superseded_answer_never_reaches_the_backend`, with an invocation-log
+// witness that no process was spawned. Nothing here repeats them.
 
 /// A command that is not there. No fixture and no script: a path that does not
 /// exist is the whole case.
@@ -423,7 +425,7 @@ async fn a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure(
   let outcome = host.evaluate(now(), quiet_event(now())).await;
 
   assert!(
-    matches!(backend_error(&outcome), BackendError::Spawn(_)),
+    matches!(backend_error(&outcome), BackendError::Spawn { .. }),
     "{}",
     describe_outcome(&outcome)
   );

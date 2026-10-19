@@ -126,6 +126,10 @@ async fn a_backend_that_never_answers_times_out_and_is_disposed_of() {
 
 /// `Spawn`. No fixture: a path that does not exist is the whole case, and
 /// nothing is spawned, so there is nothing to have cleaned up after.
+///
+/// The command has no working directory — the argv form's shape — so the
+/// report claims none: the spawn fills nothing in from the caller's directory
+/// (`design.md` §7 D2, `review-plan.md` F-15).
 #[tokio::test]
 async fn a_command_that_does_not_exist_fails_to_spawn() {
   let mut backend = ProcessBackend::new(
@@ -136,8 +140,16 @@ async fn a_command_that_does_not_exist_fails_to_spawn() {
   let exchange = backend.exchange(&evaluate()).await;
 
   match &exchange.result {
-    Err(BackendError::Spawn(error)) => {
-      assert_eq!(error.kind(), std::io::ErrorKind::NotFound, "{error}");
+    Err(BackendError::Spawn {
+      working_directory,
+      source,
+      ..
+    }) => {
+      assert_eq!(source.kind(), std::io::ErrorKind::NotFound, "{source}");
+      assert_eq!(
+        *working_directory, None,
+        "a command with no file claims no directory"
+      );
     }
     other => panic!("expected a spawn failure, got {}", describe(other)),
   }

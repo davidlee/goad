@@ -15,14 +15,32 @@ example `["python3", "backend.py"]`. No shell runs it, so pipes, globs, `~`
 and `$VARIABLES` mean nothing in it. An empty list, or an empty program, is
 refused when the config file is read.
 
-`command` is not resolved against the config file's directory. A relative
-program or argument is relative to the directory goad, or `goad-check`, is
-started in. For a host started from anywhere else — a desktop launcher, a
-service — make every path in it absolute.
+Your backend runs in the config file's directory, wherever goad, or
+`goad-check`, is started. The directory is found through any symbolic links,
+so a config file reached through a link runs your backend beside the link's
+target. `["python3", "backend.py"]` runs the `backend.py` beside the config
+file, and the config file and your backend can move together as one
+directory.
+
+Each argument is passed as written; the host never rewrites one. The program
+is the one element the host locates:
+
+- a relative path with a `/`, such as `./backend.sh`, is the one beside the
+  config file. Your program receives the config file's directory joined with
+  that path as its name, with each `.` part dropped and each `..` kept:
+  `./backend.sh` arrives as `<directory>/backend.sh`;
+- a name with no `/`, such as `python3`, is looked up on `PATH`, after the
+  move into the config file's directory, so a relative `PATH` entry is
+  relative to that directory;
+- an absolute path is used as written.
+
+Relative paths used to mean the directory goad was started in. A config file
+written for that rule needs its paths relative to its own directory instead.
 
 A program the host cannot start (not found, not executable) is reported
 under `SPEC-001/R-44` — explained in [protocol.md](protocol.md) — on the
-configuration's side, not your backend's.
+configuration's side, not your backend's. For a config file's `command`, the
+report names the path the host tried and the directory it tried it in.
 
 ## Read one request, write one response
 
@@ -114,7 +132,7 @@ path = "./goad.sock"
 | `backend.command` | yes | the argument vector above |
 | `backend.timeout` | yes | how long one exchange may take, a positive span |
 | `schedule.default_poll` | yes | how long until the next check when your backend names none, a positive span ([scheduling.md](scheduling.md)) |
-| `ingress.path` | no | where goad listens for forwarded events ([events.md](events.md)); relative to the directory goad is started in |
+| `ingress.path` | no | where goad listens for forwarded events ([events.md](events.md)); relative to the config file's directory. A socket path holds at most 107 bytes on Linux, and goad cannot listen on a longer one: if a relative path in a deep directory resolves past that, use an absolute path somewhere short, such as under `$XDG_RUNTIME_DIR`, written out in full |
 
 A span is written as `next_check`'s relative form is, such as `"30s"`,
 `"30m"` or `"45 minutes"`. A key goad does not read is an error, not ignored.

@@ -5,11 +5,12 @@ drive. It exercises the host and is not a template: to write a backend, see
 `kit/`. It needs deno and nothing else — no build step, no lockfile, no
 `node_modules`.
 
-The configuration that runs it, which those tests read from this file:
+The configuration that runs it, saved beside `backend.ts`, which those tests
+read from this file:
 
 ```toml
 [backend]
-command = ["deno", "run", "-A", "./exercisers/typescript/backend.ts"]
+command = ["deno", "run", "-A", "backend.ts"]
 timeout = "5s"
 
 [schedule]
@@ -17,8 +18,9 @@ default_poll = "30m"
 ```
 
 `command` is an argument vector, never a shell string: goad does not interpose a
-shell, so there are no quoting rules and no injection surface. A relative path is
-resolved against goad's working directory.
+shell, so there are no quoting rules and no injection surface. A relative path
+resolves against the config file's directory: goad runs the backend there,
+wherever goad itself was started.
 
 ## What it does
 

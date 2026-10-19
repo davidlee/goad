@@ -21,13 +21,16 @@ backend asked.
 To see the window, run `goad config.toml` from this directory and press
 **Check now**.
 
-## Run it from anywhere else
+## Run your own copy
 
-`command` is relative to the directory goad is started in. Copy this
-directory out and make `command` absolute:
+`command` is relative to the config file's directory, so goad and
+`goad-check` find the backend wherever you start them. An installed kit is
+read-only, so to change the example, copy this directory out and edit your
+copy. Its config needs no edit:
 
 ```toml goad:config
-# `command` is relative to this directory: run goad and goad-check from here.
+# `command` is relative to this file's directory, wherever goad or
+# goad-check is started.
 [backend]
 command = ["python3", "backend.py"]
 timeout = "30s"
@@ -35,8 +38,6 @@ timeout = "30s"
 [schedule]
 default_poll = "30m"
 ```
-
-becomes, in your copy, `command = ["python3", "/absolute/path/to/backend.py"]`.
 
 ## Behaviour
 

@@ -46,11 +46,10 @@ fn answered_at() -> Timestamp {
 /// The exerciser README's own config loads and runs (F-16, brief §15.2): the
 /// configuration it shows is the one tested, not a second one beside it.
 ///
-/// Its script path is relative to the repository root, which is where a reader
-/// following the README stands. Cargo runs a test binary with the **package**
-/// root as its working directory, and since the workspace split that is
-/// `crates/goad-shell`, so the path is rebased below rather than the README
-/// being made wrong for its reader (PHASE-01, `review-plan.md` F-35).
+/// The README says the file is saved beside `backend.ts`, so it is parsed with
+/// that directory as its anchor and run as written: a relative path resolves
+/// against the configuration's directory, wherever the test binary starts
+/// (`design.md` §7 D10, SPEC-001/R-60).
 #[tokio::test]
 async fn the_readme_s_own_config_loads_and_runs_the_example() {
   let readme = include_str!("../../../../exercisers/typescript/README.md");
@@ -58,32 +57,16 @@ async fn the_readme_s_own_config_loads_and_runs_the_example() {
     .into_iter()
     .find(|fence| fence.info.split_whitespace().next() == Some("toml"))
     .expect("the exerciser README has a toml fence");
-  let mut config = Config::parse(&readme[fence.body])
-    .unwrap_or_else(|error| panic!("the README's config: {error}"));
-  config.backend.command = rooted_at_the_workspace(config.backend.command);
+  let config = Config::parse(
+    &readme[fence.body],
+    &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../exercisers/typescript"),
+  )
+  .unwrap_or_else(|error| panic!("the README's config: {error}"));
   let mut host = host_from(config, now());
 
   let quiet = host.evaluate(now(), quiet_event(now())).await;
   assert!(quiet.failure.is_none(), "{}", describe_outcome(&quiet));
   assert!(quiet.view.is_none(), "{}", describe_outcome(&quiet));
-}
-
-/// A command whose relative arguments are resolved against the workspace root.
-///
-/// `CARGO_MANIFEST_DIR` joined with `../..` is the rule every other path in this
-/// tier already uses, and for the reason `crates/goad-boundary/src/scan.rs`
-/// gives: a test binary's working directory is not something to rely on.
-fn rooted_at_the_workspace(mut command: Command) -> Command {
-  let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-  command.arguments = command
-    .arguments
-    .into_iter()
-    .map(|argument| match argument.strip_prefix("./") {
-      Some(relative) => root.join(relative).display().to_string(),
-      None => argument,
-    })
-    .collect();
-  command
 }
 
 /// The round trip, end to end: nothing to show, then a choice, then an answer
@@ -218,8 +201,10 @@ async fn the_bash_backend_completes_the_same_round_trip() {
 ///
 /// Rooted at the crate for the reason `harness.rs::example` gives: a test
 /// binary's working directory is not something to rely on. `["bash", script]`
-/// is the argument vector `exercisers/demo.toml` names, so this runs the exerciser
-/// exactly as the demo does.
+/// is the program and script `exercisers/demo.toml` names, so this runs the same
+/// exerciser. It differs in what the config's directory supplies: the demo's
+/// script path is relative and its working directory is `exercisers/`, while
+/// this one is an absolute script path with the caller's working directory.
 fn shell_example() -> Command {
   let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../exercisers/shell/backend.sh");
   Command::new("bash", vec![script.display().to_string()])

@@ -1,4 +1,5 @@
-# `command` is relative to this directory: run goad and goad-check from here.
+# `command` is relative to this file's directory, wherever goad or
+# goad-check is started.
 [backend]
 command = ["python3", "backend.py"]
 timeout = "30s"

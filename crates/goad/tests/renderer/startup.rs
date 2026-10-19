@@ -545,7 +545,11 @@ mod stderr_outlets {
   fn unparseable(text: &str) -> StartupError {
     StartupError::ConfigUnparseable {
       path: std::path::PathBuf::from("/home/someone/.config/goad/config.toml"),
-      fault: goad_shell::config::Config::parse(text).expect_err("the text is not TOML"),
+      fault: goad_shell::config::Config::parse(
+        text,
+        std::path::Path::new("/home/someone/.config/goad"),
+      )
+      .expect_err("the text is not TOML"),
     }
   }
 
@@ -813,11 +817,11 @@ mod listener {
   use crate::scripting::claim;
 
   /// A path no other case will collide with, cleared before it is handed out —
-  /// the third such helper in this test binary, and held by the same
-  /// instrument as the other two (`review-code.md` F-11). The stake is the
-  /// same one `ingress.rs` names: two cases sharing a name share a listener,
-  /// and `cleanup` below unlinks the lock file beside the socket, so the
-  /// second case to start would clear the first's mid-run.
+  /// a helper of `claim`'s class, held by it as every such helper in this test
+  /// binary is (`review-code.md` F-11). The stake is the same one `ingress.rs`
+  /// names: two cases sharing a name share a listener, and `cleanup` below
+  /// unlinks the lock file beside the socket, so the second case to start
+  /// would clear the first's mid-run.
   ///
   /// The kind is **this helper's alone**, which is what keeps the key exact.
   /// These paths are `goad-startup-…` and `ingress.rs`'s are `goad-serve-…`, so
@@ -831,6 +835,20 @@ mod listener {
     match std::fs::remove_file(&path) {
       Ok(()) | Err(_) => (),
     }
+    path
+  }
+
+  /// A directory of this case's own, emptied before it is handed out — held
+  /// by `claim` under a kind of its own. Its name ends `.d` after the pid, so
+  /// it can never equal a `marker` path, which ends in the pid, nor
+  /// `socket_path`'s, which ends `.sock` (`claim`, *one kind per helper*).
+  fn directory(case: &str) -> PathBuf {
+    claim("startup directory", case);
+    let path = std::env::temp_dir().join(format!("goad-startup-{case}-{}.d", std::process::id()));
+    match std::fs::remove_dir_all(&path) {
+      Ok(()) | Err(_) => (),
+    }
+    std::fs::create_dir_all(&path).expect("the temp directory must be writable");
     path
   }
 
@@ -887,6 +905,54 @@ mod listener {
     );
 
     cleanup(&path);
+  }
+
+  /// AC-5: a relative `ingress.path` in a loaded configuration names a socket
+  /// beside **the configuration**, not in the directory the host was started
+  /// in. This test binary's working directory is the crate's, which is not the
+  /// configuration's, so a socket in the wrong place is a socket here.
+  ///
+  /// The stray names are cleared before the run and again after it: the run
+  /// that fails binds there, and `bind` opens the lock before it binds, so a
+  /// red run would otherwise leave both in the crate directory.
+  #[tokio::test]
+  async fn a_relative_configured_path_binds_beside_the_config() {
+    let strays = [PathBuf::from("goad.sock"), PathBuf::from("goad.sock.lock")];
+    let remove_strays = || {
+      for stray in &strays {
+        match std::fs::remove_file(stray) {
+          Ok(()) | Err(_) => (),
+        }
+      }
+    };
+    remove_strays();
+    let directory = directory("relative");
+    let file = directory.join("config.toml");
+    std::fs::write(
+      &file,
+      "[backend]\ncommand = [\"bash\", \"backend.sh\"]\ntimeout = \"5s\"\n\n\
+       [schedule]\ndefault_poll = \"30m\"\n\n[ingress]\npath = \"./goad.sock\"\n",
+    )
+    .expect("the configuration must be writable");
+    let config = goad_shell::config::Config::load(&file).expect("the file just written must load");
+
+    let bound = listener(config.ingress.as_ref()).map(drop);
+    let beside = std::fs::canonicalize(&directory)
+      .expect("the directory exists")
+      .join("goad.sock");
+    let beside_is_socket =
+      std::fs::metadata(&beside).is_ok_and(|meta| meta.file_type().is_socket());
+    let strays_found: Vec<_> = strays.iter().filter(|stray| stray.exists()).collect();
+
+    remove_strays();
+    cleanup(&beside);
+    std::fs::remove_dir_all(&directory).expect("the case's directory must be removable");
+    assert!(bound.is_ok(), "{bound:?} was not Ok");
+    assert!(beside_is_socket, "no socket at {beside:?}");
+    assert!(
+      strays_found.is_empty(),
+      "bound in the start directory: {strays_found:?}"
+    );
   }
 
   /// EX-2's `None` arm, and AC-7's second half: nothing is bound and nothing

@@ -31,11 +31,10 @@ goad-check --timeout 30s --event events/file-arrived.json -- ./backend.sh
   ([events.md](events.md)); one goad would refuse stops the run.
 - `--help` and `--version` answer and exit 0.
 
-A relative program or argument in `command` resolves against the directory
-`goad-check` was started in, as it does for goad — never against the config
-file's directory. So a config that passes the check from your project
-directory can still fail for a goad started from anywhere else: make its paths
-absolute (see *Name your command* in [running.md](running.md)).
+With `--config`, your backend runs in the config file's directory, as it
+does under goad (see *Name your command* in [running.md](running.md)), so the
+check holds wherever you run it from. The argv form has no config file: its
+program and arguments are relative to the directory you run `goad-check` in.
 
 ### A check runs your backend for real
 

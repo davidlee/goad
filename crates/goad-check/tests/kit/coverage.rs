@@ -156,7 +156,7 @@ fn every_schedule_error() -> Vec<ScheduleError> {
 
 fn backend_variant(error: &BackendError) -> String {
   match error {
-    BackendError::Spawn(_) => "BackendError::Spawn".to_owned(),
+    BackendError::Spawn { .. } => "BackendError::Spawn".to_owned(),
     BackendError::Timeout { .. } => "BackendError::Timeout".to_owned(),
     BackendError::ExitStatus { .. } => "BackendError::ExitStatus".to_owned(),
     BackendError::OutputTooLarge { .. } => "BackendError::OutputTooLarge".to_owned(),
@@ -170,7 +170,11 @@ fn backend_variant(error: &BackendError) -> String {
 
 fn every_backend_error() -> Vec<BackendError> {
   let mut every = vec![
-    BackendError::Spawn(io::Error::other("no such program")),
+    BackendError::Spawn {
+      executable: "no-such-program".into(),
+      working_directory: None,
+      source: io::Error::other("no such program"),
+    },
     BackendError::Timeout {
       after: Duration::from_secs(5),
     },

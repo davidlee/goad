@@ -125,20 +125,19 @@ const _: () = assert!(
 /// `std::env::temp_dir()` and the process id, because `tempfile` is not on the
 /// manifest allowlist (`plan.md` PL-3) and this phase adds no dependency.
 ///
-/// That promise is `scripting::marker`'s promise, made by four more helpers —
-/// `startup.rs`'s, in this same test binary, one in
-/// `crates/goad-shell/tests/integration/ingress.rs`, and two in `goad-emit` —
-/// and held by the same instrument for all but the `goad-emit` pair, whose
-/// targets cannot include the instrument without failing the gate. `claim`'s
-/// own doc carries the class and the grep that enumerates it, because naming
-/// the ones that look alike has come up short twice (`review-code.md` F-9,
-/// F-11, F-17, F-22). It matters
-/// more here than for a marker: two cases sharing a socket path share a
-/// **listener**, and `cleanup` below removes the lock file beside it, so the
-/// second case to start would unlink the first case's lock mid-run. Nothing
-/// collides today — but the names are drawn from the same well that produced
-/// the `"vt8"` collision these cases are numbered from, and `claim` is what
-/// makes "nothing collides today" checked rather than observed.
+/// That promise is `scripting::marker`'s promise, made by every helper of
+/// `claim`'s class — `startup.rs`'s, in this same test binary, among them —
+/// and held by the same instrument for all but those whose targets cannot
+/// include it without failing the gate. `claim`'s own doc names each, held
+/// and unheld, and carries the grep that enumerates them, because naming the
+/// ones that look alike has come up short twice (`review-code.md` F-9, F-11,
+/// F-17, F-22). It matters more here than for a marker: two cases sharing a
+/// socket path share a **listener**, and `cleanup` below removes the lock
+/// file beside it, so the second case to start would unlink the first case's
+/// lock mid-run. Nothing collides today — but the names are drawn from the
+/// same well that produced the `"vt8"` collision these cases are numbered
+/// from, and `claim` is what makes "nothing collides today" checked rather
+/// than observed.
 ///
 /// The kind is **this helper's alone**, which is what keeps the key exact: these
 /// paths are `goad-serve-…` and the other socket helpers' are `goad-startup-…`
@@ -1125,10 +1124,10 @@ async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_eva
 // SPEC-003/R-15's bound, held from both sides; AC-12/R-16, the flood.
 // =============================================================================
 //
-// `plan.md:1493-1585` whole. Doc comments below say which alternative each
-// AC-6 case falsifies (EX-1) and, for every exchange a case lets complete,
-// what its `next_check` was pinned to and why (EX-5, restating PHASE-04/EX-11
-// over this file).
+// Slice 004's `plan.md` PHASE-05, whole. Doc comments below say which
+// alternative each AC-6 case falsifies (EX-1) and, for every exchange a case
+// lets complete, what its `next_check` was pinned to and why (EX-5, restating
+// PHASE-04/EX-11 over this file).
 
 /// PHASE-05's own short instruction. Defined here rather than reached for in
 /// `scheduling.rs` (`plan.md`'s implementer note: this module states its

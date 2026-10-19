@@ -833,9 +833,11 @@ mod reducer {
   #[test]
   fn row_4_a_failed_evaluation_with_no_view_retains() {
     let outcome = Outcome {
-      failure: Some(Failure::Backend(BackendError::Spawn(
-        std::io::Error::other("no such program"),
-      ))),
+      failure: Some(Failure::Backend(BackendError::Spawn {
+        executable: "no-such-program".into(),
+        working_directory: None,
+        source: std::io::Error::other("no such program"),
+      })),
       ..bare()
     };
     assert_eq!(

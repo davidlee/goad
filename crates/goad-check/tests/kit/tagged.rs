@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::fmt;
 use std::mem::discriminant;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use goad_semantics::error::Requirement;
 use goad_semantics::protocol::canonical::{
@@ -145,7 +145,13 @@ fn role(info: &str) -> Option<Result<Role, Refusal>> {
   })
 }
 
-fn check(markdown: &str) -> Verdict {
+/// The directory a synthetic document is checked as lying in. `Config::parse`
+/// only joins onto it and never opens it, so it need not exist.
+const ANYWHERE: &str = "/anywhere";
+
+/// `markdown` checked as the contents of a file in `directory`, which a
+/// `goad:config` fence's relative paths are read against.
+fn check(markdown: &str, directory: &Path) -> Verdict {
   let mut verdict = Verdict {
     checked: 0,
     refusals: Vec::new(),
@@ -163,7 +169,7 @@ fn check(markdown: &str) -> Verdict {
       Role::Envelope => envelope::normalize(body.as_bytes())
         .map(drop)
         .map_err(|e| Refusal::EnvelopeRefused(e.to_string())),
-      Role::Config => Config::parse(body)
+      Role::Config => Config::parse(body, directory)
         .map(drop)
         .map_err(|e| Refusal::ConfigRefused(e.to_string())),
       response => {
@@ -343,7 +349,7 @@ fn respond(fence: &Value, view: &View) -> Result<Request, Refusal> {
 fn refused(markdown: &str) -> Refusal {
   let Verdict {
     checked, refusals, ..
-  } = check(markdown);
+  } = check(markdown, Path::new(ANYWHERE));
   let mut refusals = refusals.into_iter();
   match (checked, refusals.next(), refusals.next()) {
     (1, Some((_, refusal)), None) => refusal,
@@ -355,7 +361,7 @@ fn refused(markdown: &str) -> Refusal {
 
 /// `markdown` is checked once and refused nothing.
 fn accepted(markdown: &str) {
-  let verdict = check(markdown);
+  let verdict = check(markdown, Path::new(ANYWHERE));
   assert!(
     verdict.checked == 1 && verdict.refusals.is_empty(),
     "one checked fence, accepted; got {}: {:?}\n{markdown}",
@@ -416,7 +422,12 @@ fn every_json_and_toml_fence_in_the_kit_is_tagged_and_checked() {
   let mut checked = 0;
   let mut breaches = Vec::new();
   for document in &documents {
-    let verdict = check(&tree::text(document));
+    let verdict = check(
+      &tree::text(document),
+      document
+        .parent()
+        .expect("a kit document lies in a directory"),
+    );
     checked += verdict.checked;
     breaches.extend(
       verdict
@@ -465,7 +476,7 @@ fn answering(respond: &str) -> String {
 
 /// The refusal of the respond fence in `answering(respond)`, or `None`.
 fn respond_refusal(respond: &str) -> Option<Refusal> {
-  let verdict = check(&answering(respond));
+  let verdict = check(&answering(respond), Path::new(ANYWHERE));
   assert_eq!(verdict.checked, 2, "{respond}");
   let mut refusals = verdict.refusals.into_iter();
   let refusal = refusals.next().map(|(_, refusal)| refusal);
@@ -497,8 +508,8 @@ struct Row {
 
 /// Why `row` does not hold, if it does not.
 fn complaint(row: &Row) -> Option<String> {
-  let refused = check(&row.refused);
-  let twin = check(&row.twin);
+  let refused = check(&row.refused, Path::new(ANYWHERE));
+  let twin = check(&row.twin, Path::new(ANYWHERE));
   let held = matches!(refused.refusals.as_slice(), [(_, refusal)] if (row.refusal)(refusal))
     && twin.checked > 0
     && twin.refusals.is_empty();

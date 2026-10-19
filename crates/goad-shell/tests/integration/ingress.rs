@@ -1,13 +1,15 @@
 //! The socket's lifecycle, the accepted path, the two read budgets and the
 //! closed refusal vocabulary — `plan.md` PHASE-03 and PHASE-08, split at the
 //! listener's own read/reply seam (`plan.md` PL-10). Every case here binds a
-//! real socket, in its own directory under `std::env::temp_dir()`
-//! (`config.rs:226`'s precedent — `tempfile` is not on the manifest
-//! allowlist), against a **fake judge**: a task that takes every `Arrival`
-//! the listener hands it and answers according to a script, recording what it
-//! saw. `serve` itself is untouched until PHASE-04; no *production* code here
-//! constructs `engaged` or `too_soon` — `Verdict::Refuse` lets a case script
-//! either, which is how PHASE-08's VT-9 drives them without `serve`.
+//! real socket, in its own directory under `std::env::temp_dir()` (the
+//! precedent is `config.rs`'s
+//! `tests::a_configuration_is_read_from_a_file_and_a_missing_one_says_so`;
+//! `tempfile` is not on the manifest allowlist), against a **fake judge**: a
+//! task that takes every `Arrival` the listener hands it and answers according
+//! to a script, recording what it saw. `serve` itself is untouched until
+//! PHASE-04; no *production* code here constructs `engaged` or `too_soon` —
+//! `Verdict::Refuse` lets a case script either, which is how PHASE-08's VT-9
+//! drives them without `serve`.
 
 use std::io::{BufRead as _, Write as _};
 use std::path::{Path, PathBuf};
@@ -40,11 +42,10 @@ const GOOD: &str = r#"{"source":"reddit-watcher","kind":"reddit-opened","timesta
 /// unlinks the lock file beside the socket.
 ///
 /// The kind is **this helper's alone**, which is what keeps the key exact: the
-/// other helpers of this class mint `goad-serve-…`, `goad-startup-…` and —
-/// unheld, both of them, see `claim` (F-17, F-22) — `goad-emit`'s two, so a
-/// kind shared between them would report a collision where there is none. See
-/// `claim` for why the rule is one kind per helper rather than one kind per
-/// prefix (F-21).
+/// other helpers of this class mint paths of their own — `claim`'s doc names
+/// each, held and unheld (F-17, F-22) — so a kind shared between them would
+/// report a collision where there is none. See `claim` for why the rule is one
+/// kind per helper rather than one kind per prefix (F-21).
 fn socket_path(case: &str) -> PathBuf {
   claim("ingress socket", case);
   let path = std::env::temp_dir().join(format!("goad-ingress-{case}-{}.sock", std::process::id()));
@@ -650,6 +651,64 @@ async fn a_missing_directory_is_refused_as_an_unusable_location_not_as_an_unknow
     "a missing directory is R-4's unusable location, not R-3's undetermined liveness, got: {}",
     error.fault
   );
+}
+
+/// R-4's length edge: a socket address holds 107 bytes of path (`sun_path`
+/// less its terminator), and a path of 108 is refused rather than truncated —
+/// as `Unbindable` over the platform's `InvalidInput`, naming the path. A path
+/// of 107 in the same directory binds, which is what makes the refusal about
+/// length and not about the directory. std's wording is not asserted.
+///
+/// The directory is under `std::env::temp_dir()`, so what is left for the file
+/// name depends on it; a `TMPDIR` too long to leave room for the control fails
+/// the case naming the precondition and the length found, never skips it.
+#[tokio::test]
+async fn a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path() {
+  const HOLDS: usize = 107;
+
+  let dir = std::env::temp_dir().join(format!("goad-ingress-length-{}.d", std::process::id()));
+  let room = HOLDS.saturating_sub(dir.as_os_str().len().saturating_add(1));
+  assert!(
+    room > 0,
+    "precondition: std::env::temp_dir() leaves no room for a {HOLDS}-byte socket path; the \
+     directory this case needs is {} bytes",
+    dir.as_os_str().len()
+  );
+  match std::fs::remove_dir_all(&dir) {
+    Ok(()) | Err(_) => (),
+  }
+  match std::fs::create_dir(&dir) {
+    Ok(()) => (),
+    Err(error) => panic!("could not create the directory: {error}"),
+  }
+  let over = dir.join("s".repeat(room.saturating_add(1)));
+  let fits = dir.join("f".repeat(room));
+  assert_eq!(over.as_os_str().len(), HOLDS.saturating_add(1));
+  assert_eq!(fits.as_os_str().len(), HOLDS);
+
+  let refusal = match bind(&over) {
+    Err(error) => error,
+    Ok(_ingress) => panic!("a path of {} bytes must be refused", over.as_os_str().len()),
+  };
+  let bound = bind(&fits);
+
+  assert_eq!(refusal.path, over);
+  assert!(
+    matches!(&refusal.fault, BindFault::Unbindable(inner) if inner.kind() == std::io::ErrorKind::InvalidInput),
+    "an over-long path is R-4's unusable location, got: {}",
+    refusal.fault
+  );
+  assert!(
+    refusal.to_string().contains(&over.display().to_string()),
+    "{refusal}"
+  );
+  assert!(
+    bound.is_ok(),
+    "the control: a path of {HOLDS} bytes must bind"
+  );
+  match std::fs::remove_dir_all(&dir) {
+    Ok(()) | Err(_) => (),
+  }
 }
 
 // ---------------------------------------------------------------------------

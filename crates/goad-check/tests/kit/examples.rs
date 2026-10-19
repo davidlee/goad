@@ -1,9 +1,12 @@
 //! The shipped examples under the checker (`design.md` §5.2.6).
 //!
-//! Every directory under `kit/skills/goad-backend/examples/` is copied to a
-//! temporary directory and `goad-check --config config.toml` is started
-//! there, with the example's event files and a temporary `HOME` and `XDG_*`.
-//! The helpers are example-blind; only the triage case names an example.
+//! Every directory under `kit/skills/goad-backend/examples/` is copied to
+//! `example/` in a temporary directory, and `goad-check --config
+//! example/config.toml` is started in that directory — **outside** the copy —
+//! with the example's event files and a temporary `HOME` and `XDG_*`. The
+//! backend runs beside its config wherever the checker starts
+//! (SPEC-001/R-60), so starting elsewhere is what shows it. The helpers are
+//! example-blind; only the triage case names an example.
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -17,8 +20,8 @@ use crate::tree;
 /// after `render::NO_VIEW` and `tests/binary/run.rs`'s.
 const NO_VIEW: &str = "no exchange returned a view, so respond was not exercised";
 
-/// What every run has: the copy the checker starts in, and the temporary
-/// directories the example's environment names.
+/// What every run has: the directory the checker starts in, the copy under
+/// it, and the temporary directories the example's environment names.
 struct Handout {
   root: PathBuf,
 }
@@ -66,7 +69,7 @@ fn copy_tree(from: &Path, to: &Path) {
 /// A temporary directory per `case` and example, left after the run so a
 /// failure can be read; the pid last, so it cannot end `.sock`. A helper of
 /// `tests/support/scripting.rs` `claim`'s class, unheld by it for the reason
-/// `claim`'s doc gives `goad-emit`'s two: including the file costs `dead_code`.
+/// `claim`'s doc gives every unheld one: including the file costs `dead_code`.
 fn handout(case: &str, example: &Path) -> Handout {
   let name = example.file_name().expect("an example has a name");
   let root = std::env::temp_dir().join(format!(
@@ -81,29 +84,31 @@ fn handout(case: &str, example: &Path) -> Handout {
   Handout { root }
 }
 
-/// The checker, started in the copy in the config form with each of its event
-/// files, every inherited `XDG_*` removed and the temporary ones set. `PATH`
-/// is inherited: the interpreters are the devshell's.
+/// The checker, started in the hand-out's root — not the copy — in the config
+/// form with each of the copy's event files, every inherited `XDG_*` removed
+/// and the temporary ones set. Both paths are relative to the root: the
+/// checker reads an event file from its own directory, and only `--config`'s
+/// directory moves the backend. `PATH` is inherited: the interpreters are the
+/// devshell's.
 fn run_checker(handout: &Handout) -> Output {
-  let example = handout.example();
-  let mut events: Vec<PathBuf> = fs::read_dir(example.join("events"))
+  let root = &handout.root;
+  let mut events: Vec<PathBuf> = fs::read_dir(handout.example().join("events"))
     .map_or_default(|dir| dir.map(|entry| entry.expect("an entry").path()).collect());
   events.sort();
   let mut command = std::process::Command::new(env!("CARGO_BIN_EXE_goad-check"));
   command
-    .current_dir(&example)
-    .args(["--config", "config.toml"]);
+    .current_dir(root)
+    .args(["--config", "example/config.toml"]);
   for event in events {
     command
       .arg("--event")
-      .arg(event.strip_prefix(&example).expect("under the copy"));
+      .arg(event.strip_prefix(root).expect("under the root"));
   }
   for (name, _) in std::env::vars_os() {
     if name.to_string_lossy().starts_with("XDG_") {
       command.env_remove(name);
     }
   }
-  let root = &handout.root;
   command
     .env("HOME", root.join("home"))
     .env("XDG_STATE_HOME", root.join("state"))

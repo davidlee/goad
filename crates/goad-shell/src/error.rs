@@ -9,6 +9,7 @@
 //! which computes over lengths a backend chose, carries one.
 
 use std::fmt;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use goad_semantics::error::{AtFault, ProtocolError, Requirement, SpanFault};
@@ -23,7 +24,17 @@ use goad_semantics::protocol::canonical::ViewId;
 pub enum BackendError {
   /// The command could not be started — nothing was spawned, so there is
   /// nothing to have cleaned up after.
-  Spawn(std::io::Error),
+  ///
+  /// `executable` is the path the host executed and `working_directory` the
+  /// directory it ran in: once a program is looked for beside its
+  /// configuration, the error alone does not say where that was. `None` is a
+  /// command with no file, which runs where its caller runs (`design.md` D2);
+  /// SPEC-001/R-60 governs only a command loaded from a file.
+  Spawn {
+    executable: PathBuf,
+    working_directory: Option<PathBuf>,
+    source: std::io::Error,
+  },
   /// The backend did not complete an exchange within its configured window.
   /// `after` is that window, not the elapsed time: disposal is bounded
   /// separately and a call waits at most the sum (R-41).
@@ -73,9 +84,10 @@ pub enum CleanupFailure {
 /// Separate from `BackendError` because the backend did nothing wrong, and it
 /// was not asked: `respond` checks the id against host state *before* touching
 /// the transport, so a stale answer never reaches a backend author's code
-/// (R-32, `design.md:1600`). Two variants rather than one because the
-/// diagnostics differ — "there is no interaction open" and "you answered the
-/// previous one" are different mistakes with different fixes (D24, F-8, F-15).
+/// (R-32; slice 001's `design.md` §5.4, the note after the `respond`
+/// sequence). Two variants rather than one because the diagnostics differ —
+/// "there is no interaction open" and "you answered the previous one" are
+/// different mistakes with different fixes (D24, F-8, F-15).
 ///
 /// It sits here and not in `semantics/` because staleness is a fact about host
 /// state, not about the message: the same bytes are valid or stale depending on
@@ -101,11 +113,15 @@ pub enum StateError {
 /// which is the argument `StateError` already rests on. User decision 2026-09-03;
 /// `plan-log.md`.
 ///
-/// Every variant is fatal at construction (`design.md:1236`): there is no backend
-/// to run without a config, and guessing a command is not available to us.
+/// Every variant is fatal at construction (slice 001's `design.md` §5.4,
+/// *Startup*): there is no backend to run without a config, and guessing a
+/// command is not available to us.
 #[derive(Debug)]
 pub enum ConfigError {
-  /// The file is missing or could not be read.
+  /// The file could not be read: it is missing or unreadable, a link to
+  /// nothing, `/`, or a descriptor that is not a file — `/dev/stdin` or
+  /// `/proc/self/fd/N` on a pipe or a socket, which canonicalization refuses.
+  /// On a regular file either path canonicalizes to that file and loads.
   Read(std::io::Error),
   /// Not TOML, or TOML that is not this shape — a missing section, a missing
   /// key, a value of the wrong type. `toml`'s own message carries the line, the
@@ -126,7 +142,8 @@ pub enum ConfigError {
   EmptyCommand,
   /// A duration that parsed but is zero or negative. A zero timeout fails every
   /// exchange and a zero poll is a busy loop, so neither is a configuration the
-  /// host can honour (`design.md:1744`).
+  /// host can honour (slice 001's `design.md` §5.5 *Edge cases*, the
+  /// `timeout = "0s"` row).
   NonPositive { key: &'static str },
   /// `ingress.path = ""`. An unusable value is not representable past this
   /// boundary, the same argument `EmptyCommand` rests on for the backend's
@@ -141,7 +158,7 @@ impl BackendError {
   #[must_use]
   pub fn requirement(&self) -> Requirement {
     match self {
-      Self::Spawn(_) => Requirement::R44,
+      Self::Spawn { .. } => Requirement::R44,
       Self::Timeout { .. } => Requirement::R41,
       Self::ExitStatus { .. } => Requirement::R40,
       Self::OutputTooLarge { .. } => Requirement::R43,
@@ -154,7 +171,7 @@ impl BackendError {
   #[must_use]
   pub fn fault(&self) -> AtFault {
     match self {
-      Self::Spawn(_) => AtFault::Configuration,
+      Self::Spawn { .. } => AtFault::Configuration,
       Self::Timeout { .. } | Self::ExitStatus { .. } | Self::OutputTooLarge { .. } => {
         AtFault::Backend
       }
@@ -261,7 +278,17 @@ impl std::error::Error for ConfigError {
 impl fmt::Display for BackendError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Spawn(inner) => write!(f, "backend could not be spawned: {inner}"),
+      Self::Spawn {
+        executable,
+        working_directory,
+        source,
+      } => {
+        write!(f, "backend could not be spawned: {}", executable.display())?;
+        if let Some(directory) = working_directory {
+          write!(f, " (in {})", directory.display())?;
+        }
+        write!(f, ": {source}")
+      }
       Self::Timeout { after } => {
         write!(f, "backend did not respond within {}ms", after.as_millis())
       }
@@ -295,7 +322,7 @@ impl fmt::Display for CleanupFailure {
 impl std::error::Error for BackendError {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
-      Self::Spawn(inner) | Self::Io(inner) => Some(inner),
+      Self::Spawn { source: inner, .. } | Self::Io(inner) => Some(inner),
       Self::Protocol(inner) => Some(inner),
       Self::Timeout { .. }
       | Self::ExitStatus { .. }
@@ -316,6 +343,7 @@ impl std::error::Error for CleanupFailure {
 
 #[cfg(test)]
 mod tests {
+  use std::path::PathBuf;
   use std::time::Duration;
 
   use goad_semantics::error::{AtFault, ProtocolError};
@@ -329,7 +357,7 @@ mod tests {
   /// delegates: its row is whatever the wrapped error answers.
   fn backend_row(error: &BackendError) -> (String, AtFault) {
     match error {
-      BackendError::Spawn(_) => ("R-44".to_owned(), AtFault::Configuration),
+      BackendError::Spawn { .. } => ("R-44".to_owned(), AtFault::Configuration),
       BackendError::Timeout { .. } => ("R-41".to_owned(), AtFault::Backend),
       BackendError::ExitStatus { .. } => ("R-40".to_owned(), AtFault::Backend),
       BackendError::OutputTooLarge { .. } => ("R-43".to_owned(), AtFault::Backend),
@@ -363,7 +391,11 @@ mod tests {
   /// whose answers differ, so the delegation is seen to follow the inner one.
   fn every_backend_error() -> Vec<BackendError> {
     vec![
-      BackendError::Spawn(io_error()),
+      BackendError::Spawn {
+        executable: PathBuf::from("/anchor/backend.sh"),
+        working_directory: Some(PathBuf::from("/anchor")),
+        source: io_error(),
+      },
       BackendError::Timeout {
         after: Duration::from_secs(5),
       },
@@ -431,5 +463,22 @@ mod tests {
         "`{error}` disagrees with its row"
       );
     }
+  }
+
+  /// The argv form's shape: a command with no file runs where its caller
+  /// runs, so its report names the executable and claims no directory
+  /// (`design.md` §5.2, **Errors**).
+  #[test]
+  fn a_spawn_failure_with_no_working_directory_names_only_the_executable() {
+    let error = BackendError::Spawn {
+      executable: PathBuf::from("./backend.sh"),
+      working_directory: None,
+      source: io_error(),
+    };
+
+    assert_eq!(
+      error.to_string(),
+      "backend could not be spawned: ./backend.sh: refused"
+    );
   }
 }

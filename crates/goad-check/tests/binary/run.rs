@@ -6,14 +6,16 @@
 //! host's own kinds' evaluates, the R-56 probe's, then each event file's,
 //! with each view's responds after the exchange that returned it — and past
 //! its list it behaves.
-use std::path::Path;
+use std::os::unix::fs::PermissionsExt;
+use std::path::{Path, PathBuf};
 use std::process::Output;
 
 use goad_semantics::protocol::canonical::{HOST_SOURCE, Stimulus};
 use serde_json::Value;
 
 use crate::process::{
-  against, assert_last_stderr_line_is_the_checker_s, check, code_of, fixture, stderr_of, stdout_of,
+  against, assert_last_stderr_line_is_the_checker_s, check, check_in, code_of, fixture, stderr_of,
+  stdout_of,
 };
 use crate::scripting;
 
@@ -457,4 +459,112 @@ fn a_probe_failure_on_another_side_is_not_charged_with_r56() {
     "{stdout}"
   );
   assert!(!stdout.contains("SPEC-001/R-56"), "{stdout}");
+}
+
+/// A directory of this case's own under `std::env::temp_dir()`, emptied before
+/// it is handed out and held by `claim` under a kind of its own. The name ends
+/// `.d` after the pid, so it can never equal a `marker` path, which ends in
+/// the pid (`claim`, *one kind per helper*). Its case removes it on success; a
+/// failing case leaves it, so the failure can be read.
+fn root(case: &str) -> PathBuf {
+  scripting::claim("checker root", case);
+  let path = std::env::temp_dir().join(format!("goad-check-{case}-{}.d", std::process::id()));
+  match std::fs::remove_dir_all(&path) {
+    Ok(()) | Err(_) => (),
+  }
+  std::fs::create_dir_all(&path).expect("the temp directory must be writable");
+  path
+}
+
+/// A backend at `path` that appends `label` to the file its first argument
+/// names and answers every request with a conforming evaluate. Shell builtins
+/// only (`read`, `printf`, redirection), so it runs under a `PATH` that holds
+/// nothing else: the kernel, not `PATH`, resolves its `#!/bin/sh`.
+fn labelled_backend(path: &Path, label: &str) {
+  std::fs::write(
+    path,
+    format!(
+      "#!/bin/sh\n\
+       while read -r line; do :; done\n\
+       printf '%s\\n' '{label}' >>\"$1\"\n\
+       printf '%s\\n' '{NOTHING}'\n"
+    ),
+  )
+  .expect("the backend must be writable");
+  std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+    .expect("the backend must be made executable");
+}
+
+/// Each line a labelled backend wrote, or none if it never ran.
+fn labels(log: &Path) -> Vec<String> {
+  std::fs::read_to_string(log)
+    .unwrap_or_default()
+    .lines()
+    .map(str::to_owned)
+    .collect()
+}
+
+/// A program with no `/` is looked up on `PATH`, as a shell does, and never
+/// beside the configuration, though the backend runs in its directory. A pin:
+/// green under the spawn it replaces, red under one that anchors every
+/// relative program. On this tier so that `PATH` is set on the checker's
+/// process alone and the inherited environment cannot decide it.
+#[test]
+fn a_program_with_no_slash_is_found_on_path_not_beside_the_config() {
+  let root = root("bare-program");
+  let config = root.join("config");
+  let path = root.join("path");
+  std::fs::create_dir_all(&config).expect("the config directory must be creatable");
+  std::fs::create_dir_all(&path).expect("the PATH directory must be creatable");
+  labelled_backend(&config.join("goad-decoy"), "beside");
+  labelled_backend(&path.join("goad-decoy"), "from-path");
+  let log = root.join("log");
+  // A JSON string is a TOML basic string for any path `temp_dir` mints.
+  std::fs::write(
+    config.join("config.toml"),
+    format!(
+      "[backend]\ncommand = [\"goad-decoy\", {}]\ntimeout = \"5s\"\n\n[schedule]\ndefault_poll = \"30m\"\n",
+      Value::from(log.display().to_string())
+    ),
+  )
+  .expect("the configuration must be writable");
+
+  let output = check_in(
+    &root,
+    &[("PATH", path.as_os_str())],
+    &["--config", "config/config.toml"],
+  );
+
+  let labels = labels(&log);
+  assert!(
+    !labels.is_empty(),
+    "the backend never ran: {}",
+    report_of(&output)
+  );
+  assert!(
+    labels.iter().all(|label| label == "from-path"),
+    "{labels:?}: {}",
+    report_of(&output)
+  );
+  std::fs::remove_dir_all(&root).expect("the case's directory must be removable");
+}
+
+/// The argv form names a command, not a file, so it has no directory of its
+/// own: `./backend.sh` is the one in the directory the checker was started
+/// in. A pin: accepted, so the backend was found where the caller stands.
+#[test]
+fn the_argv_form_runs_a_relative_program_from_the_caller_s_directory() {
+  let root = root("argv-relative");
+  labelled_backend(&root.join("backend.sh"), "ran");
+  let log = root.join("log");
+
+  let output = check_in(
+    &root,
+    &[],
+    &["--", "./backend.sh", &log.display().to_string()],
+  );
+
+  assert_eq!(code_of(&output), 0, "{}", report_of(&output));
+  assert!(!labels(&log).is_empty(), "the backend never ran");
+  std::fs::remove_dir_all(&root).expect("the case's directory must be removable");
 }

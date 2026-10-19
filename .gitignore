@@ -10,14 +10,16 @@ target/
 
 # the demo's ingress socket, and the lock file the host holds beside it —
 # both live in the checkout deliberately (D-17); exercisers/demo.toml's
-# [ingress] path resolves against the repository root, which `just` sets as
-# goad's working directory. The host unlinks neither on exit (`SPEC-003/R-5`).
-/goad-demo.sock
-/goad-demo.sock.lock
+# [ingress] path resolves against that file's directory (SPEC-003/R-17), so
+# they sit in exercisers/ wherever goad is started from. The host unlinks
+# neither on exit (`SPEC-003/R-5`).
+/exercisers/goad-demo.sock
+/exercisers/goad-demo.sock.lock
 
 # the socket an event-driven kit example's host binds in the example's own
 # directory, and its lock file — the same arrangement as the demo's (D-17):
-# each config's [ingress] path is ./goad.sock, relative to where goad is run.
+# each config's [ingress] path is ./goad.sock, which resolves against the
+# config's own directory (SPEC-003/R-17).
 /kit/skills/goad-backend/examples/*/goad.sock
 /kit/skills/goad-backend/examples/*/goad.sock.lock
 

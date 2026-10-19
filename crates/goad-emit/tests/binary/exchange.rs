@@ -18,6 +18,18 @@ fn socket_path(case: &str) -> PathBuf {
   path
 }
 
+/// A directory of this case's own, emptied first: the `XDG_CONFIG_HOME` of one
+/// spawned `goad-emit`, whose `goad/config.toml` the case writes. Follows
+/// `socket_path`'s precedent: this target does not include `claim`'s file.
+fn config_home(case: &str) -> PathBuf {
+  let path = std::env::temp_dir().join(format!("goad-emit-{case}-{}.d", std::process::id()));
+  match std::fs::remove_dir_all(&path) {
+    Ok(()) | Err(_) => (),
+  }
+  std::fs::create_dir_all(path.join("goad")).expect("the temp directory must be writable");
+  path
+}
+
 fn cleanup(path: &Path) {
   match std::fs::remove_file(path) {
     Ok(()) | Err(_) => (),
@@ -25,9 +37,9 @@ fn cleanup(path: &Path) {
 }
 
 /// One connection, one line read, one canned reply, then close — the shape
-/// `tests/integration/ingress.rs:1296` uses one tier up. Bound *before* the
-/// thread is spawned, so the socket exists by the time this returns and the
-/// client cannot lose a race with it.
+/// `goad-shell`'s `tests/integration/ingress.rs` `fake_listener` uses one tier
+/// up. Bound *before* the thread is spawned, so the socket exists by the time
+/// this returns and the client cannot lose a race with it.
 ///
 /// The handle yields the line the client sent, which is VT-4's subject.
 fn fake_listener(path: &Path, reply: &'static str) -> JoinHandle<String> {
@@ -50,6 +62,18 @@ fn fake_listener(path: &Path, reply: &'static str) -> JoinHandle<String> {
 fn emit(arguments: &[&str]) -> Output {
   std::process::Command::new(env!("CARGO_BIN_EXE_goad-emit"))
     .args(arguments)
+    .output()
+    .expect("the built binary must be runnable")
+}
+
+/// The binary started in `directory`, with `home` as the only configuration
+/// directory it is told of. Set on the child alone: `std::env::set_var` is
+/// disallowed, and the inherited `XDG_CONFIG_HOME` names the person's own.
+fn emit_from(directory: &Path, home: &Path, arguments: &[&str]) -> Output {
+  std::process::Command::new(env!("CARGO_BIN_EXE_goad-emit"))
+    .args(arguments)
+    .current_dir(directory)
+    .env("XDG_CONFIG_HOME", home)
     .output()
     .expect("the built binary must be runnable")
 }
@@ -303,4 +327,39 @@ fn the_bytes_on_the_socket_normalize_to_the_event_that_was_sent() {
   assert_eq!(event.kind, "k");
   assert_eq!(event.data, serde_json::json!({"n": 4}));
   cleanup(&path);
+}
+
+/// AC-5, I-3: with no `--socket`, a relative `ingress.path` in the default
+/// configuration names a socket beside **that file**, not in the directory
+/// `goad-emit` was started in — the socket the host binds from the same file.
+///
+/// `goad-emit` starts in a directory of the case's own, where nothing
+/// listens, so one that connected to `./goad.sock` there is refused. The
+/// status is asserted before the listener is joined: it blocks in `accept`,
+/// and a `goad-emit` that connected elsewhere would hang the join instead of
+/// failing the case.
+#[test]
+fn a_relative_configured_socket_is_found_beside_the_configuration() {
+  let home = config_home("relative-config");
+  std::fs::write(
+    home.join("goad/config.toml"),
+    "[backend]\ncommand = [\"bash\", \"backend.sh\"]\ntimeout = \"5s\"\n\n\
+     [schedule]\ndefault_poll = \"30m\"\n\n[ingress]\npath = \"./goad.sock\"\n",
+  )
+  .expect("the configuration must be writable");
+  let beside = std::fs::canonicalize(home.join("goad"))
+    .expect("the configuration's directory exists")
+    .join("goad.sock");
+  let listener = fake_listener(&beside, r#"{"protocol":1,"accepted":true}"#);
+  let start = home.join("start");
+  std::fs::create_dir(&start).expect("the start directory must be creatable");
+
+  let output = emit_from(&start, &home, &["--source", "w", "--kind", "k"]);
+
+  let code = code_of(&output);
+  let stderr = stderr_of(&output);
+  std::fs::remove_dir_all(&home).expect("the case's directory must be removable");
+  assert_eq!(code, 0, "{stderr}");
+  let line = listener.join().expect("the listener thread must finish");
+  assert!(line.contains(r#""source":"w""#), "{line}");
 }

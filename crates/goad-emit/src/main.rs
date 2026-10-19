@@ -288,7 +288,9 @@ mod tests {
   }
 
   /// A configuration that *does* name a socket is where the path comes from
-  /// with no `--socket` — the positive control for the four faults above.
+  /// with no `--socket` — the positive control for the four faults above. A
+  /// relative path is the configuration's own directory's, canonical, which is
+  /// where the host binds it.
   #[test]
   fn a_configured_ingress_path_is_what_is_written_to() {
     let home = config_home(
@@ -299,7 +301,9 @@ mod tests {
     );
     let resolved =
       socket_path(&request(None), &env_at(&home)).expect("this configuration names a socket");
-    assert_eq!(resolved, PathBuf::from("./from-config.sock"));
+    let directory = std::fs::canonicalize(home.join("goad"))
+      .expect("the configuration's directory was just created");
+    assert_eq!(resolved, directory.join("from-config.sock"));
   }
 
   /// PHASE-03/VT-5. `design.md` §5.5 assumes `Event`'s own `Serialize` output
