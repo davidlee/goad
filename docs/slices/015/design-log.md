@@ -77,3 +77,9 @@ other, citing the finding id.
   to R-15) holds `goad-check`'s exit statuses only, and no canon holds its
   command line. So no row is owed to 012. The rule goes in the kit's
   `checking.md`, which this slice edits. Told to the person on recording.
+
+### 2026-10-19 — the design stage's grant
+
+- **Asked:** may the design agent decide everything except canon wording, which
+  returns to the person before review? And start design now?
+- **Decided:** yes to both.
