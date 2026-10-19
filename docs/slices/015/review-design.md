@@ -4,7 +4,7 @@
 `canon-delta.md` at `e231462` or later
 **Reviewer:** fresh agent, Opus
 **Opened:** 2026-10-19
-**State:** open
+**State:** resolved
 
 Structured, append-only findings ledger for one adversarial review. Everything
 needed to drive it is in this file. Narrative history — what was decided and
@@ -118,7 +118,7 @@ hold throughout; these are the surfaces to attack:
 | F-18 | minor | fix-now | verified |
 | F-19 | nit | doc-wrong | verified |
 | F-20 | nit | doc-wrong | verified |
-| F-21 | nit | doc-wrong | |
+| F-21 | nit | doc-wrong | verified |
 
 ### Round 1 — raiser's notes
 
@@ -722,11 +722,9 @@ says which is which, so nothing is false in substance; the opening is.
 **Disposition:** doc-wrong
 **Response:** (orchestrator, as responder.) R-60's §7 row in `canon-delta.md` now opens "integration, built-binary and unit. Every case that drives a real backend loads its configuration and does so from a working directory that is **not** the configuration's." The body is unchanged. The person approved the phrase (`design-log.md` 2026-10-19, *F-21*).
 
-**Outcome:**
+**Outcome:** verified — round 4. Change 3 now opens *integration, built-binary and unit*, and its quantifier covers only the cases that drive a backend, so the opening describes every case the row names.## Synthesis
 
-## Synthesis
-
-Three rounds, findings F-1 to F-21; no blocker was raised.
+Four rounds, findings F-1 to F-21, all verified; no blocker was raised.
 
 **What the review changed.** Most of it landed on R-60:
 - It no longer promises a program its name as written. A script cannot
@@ -736,7 +734,7 @@ Three rounds, findings F-1 to F-21; no blocker was raised.
   the native half has one too (F-18).
 - The directory-link half of the linked-config case moved from the spawn,
   where it is unobservable, to the loaded value (F-3).
-- Its verification row separates red cases from the pin (F-4).
+- Its verification row separates red cases from the pin (F-4) and names its tiers (F-21).
 - The `PATH` case moved to the built-binary tier so the environment cannot
   decide it (F-5).
 - A spawn failure for a configured command names the executed path and the
