@@ -4,8 +4,9 @@
 **Tier:** 2 (full) — it adds a rule to SPEC-001, which states nothing today
 about where a backend command runs.
 **Depends on:** slice 012's promotion of `canon-delta.md`, before this
-slice promotes its own (R-60 follows 012's R-59). Its `kit/` edits wait for slice 012's PHASE-10,
-which may edit the same files (one writer per worktree).
+slice promotes its own (R-60 follows 012's R-59). Its `kit/` edits wait for
+slice 012's PHASE-10, which may edit the same files (one writer per
+worktree).
 
 ## Purpose
 
