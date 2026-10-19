@@ -9,10 +9,55 @@ Written after the last phase is done. Two jobs in one document:
 
 ## Brief
 
-**Subject:** <commit range / branch under audit>
-**Question:** <what would have to be true for this slice to be finished, and
-which of those the audit intends to actually check. Write it before looking, so
-the audit is not shaped by what turned out to be easy to find.>
+**Subject:** `c68a624..53d140a` on branch `slice-015` (worktree
+`.claude/worktrees/slice-015`): PHASE-01 through PHASE-04, ending
+`015: PHASE-04 — VH-1 run by the person; phase done`.
+
+**Question:** the slice is finished when a config whose `command` and
+`ingress.path` are relative works however goad, `goad-check --config` and
+`goad-emit` were started — through a symbolic link too — and the record says
+so: the kit with no *make every path absolute* advice, and SPEC-001 /
+SPEC-003 carrying the rule once `canon-delta.md` is promoted.
+
+What this audit checks, decided before looking:
+
+1. **The gate.** `just check` exits 0 on `53d140a`, run by the auditor, with a
+   `TMPDIR` short enough for the 107-byte socket control.
+2. **Each AC** (AC-1 … AC-5) against the code and the tests, not the phase
+   sheets' claims. AC-4 and AC-5's person half from PHASE-04's *VH-1* record.
+   AC-3's canon half is promotion, which is not yet done.
+3. **Each VT / VA / VH** in `plan.md`, walked against the tree: the named
+   test exists, asserts what the criterion says, and is green. Natural-red and
+   mutation tables checked for missing rows, uncompiled mutants, and reds for a
+   reason other than the one claimed; a sample of mutations re-run by the
+   auditor — at least one per phase judged weakest — by scratchpad
+   copy-and-restore, `--no-fail-fast`.
+4. **Surface delta.** Each phase commit range's touched paths against that
+   phase's declared Surfaces; every undeclared path classified.
+5. **Reconciliation.** One row per `canon-delta.md` change; each §7 test
+   citation resolves to a `fn` in the tree; any other canon / doc / code
+   divergence classified. Drafted only: canon is not edited here.
+6. **Design drift.** Where shipped code departs from `design.md`.
+
+Out of scope here: in-depth code review (a fresh reviewer, `review-code.md`)
+and repairs. Defects found on the way are listed as *Leads for the code
+reviewer*.
+
+**Invariants held** (`CLAUDE.md`):
+
+- *The host does not understand the user's domain* — no domain vocabulary in
+  new host types or names; the working directory is a transport fact, not a
+  domain one.
+- *Permissive parsing, canonical representation* — no argument in argv is
+  reinterpreted as a path; the anchored directory is fixed at `Config::load`,
+  the one door, and nothing downstream re-derives it.
+- *No narrowing of wire compatibility for the renderer* — the config's
+  accepted shape is unchanged; only what a relative path means changes.
+- *A backend failure never takes the host down* — a spawn failure in the new
+  directory is still `BackendError::Spawn`, R-44, the configuration's side,
+  and names where it looked.
+- *Strata run one way* (ADR-001) — nothing enters `goad-semantics`; the clock,
+  filesystem and subprocess work stays in `goad-shell` and above.
 
 <!-- This is the audit's scope — evidence, criteria, canon. The code review's
      own lines of attack belong in `review-code.md`'s Brief, not here. -->
