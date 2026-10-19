@@ -509,3 +509,19 @@ executor resumes.
   are wire-neutral and canon-neutral, and PHASE-09's walks will measure the
   fixed kit. W0-1, W0-2, W0-3, W0-6 and W0-7 are follow-ups in `notes.md`
   §Open. PHASE-09, PHASE-10 and PHASE-11 are otherwise unchanged.
+
+### 2026-10-19 — W-1: the router, and the live swap
+
+- **Asked:** one goad runs one backend; for SATAN to keep several, it owns
+  the one the unit runs and routes. Put: whether to swap the live config to
+  SATAN's router, where the ingress socket lives, who writes the router.
+- **Decided:** *"i'd swap it. daily checklist is an example"*; the socket
+  *"under the already bound one"* (`/run/user/1000/satan`); *"satan"* writes
+  it.
+- **Consequence:** outside this repository: `~/.config/goad/config.toml`
+  links to `~/satan-corpus/goad/router/config.toml` (old file kept as
+  `config.toml.checklist`); the ingress socket is
+  `/run/user/1000/satan/goad.sock`; `~/flakes`' goad unit makes its parent
+  before starting; `~/notes`' `jailed-pi` binds `/run/user/1000/satan`. In
+  this repository: `walks.md` W-1, where W1-10 is a
+  kit fix (`checking.md`, `4473c7d`), and the new follow-ups in `notes.md` §Open.

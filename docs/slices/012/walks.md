@@ -37,3 +37,37 @@ SATAN's handback, verbatim: `walks/satan-0-ISSUES.md`.
 | W0-6 | a config cannot sit beside its backend portably: `command` resolves against goad's working directory, so SATAN used absolute paths | `running.md` and `checking.md` state it (R-36) | **follow-up**: resolving against the config's directory is a SPEC-001 change, its own slice |
 | W0-7 | `goad-check` runs the backend against real state unless `HOME`/`XDG_*` are redirected | `checking.md` states it | **follow-up**: scratch `HOME`/`XDG_*` by default, with an opt-out. It changes the checker's run. SATAN's `justfile` already redirects it |
 | W0-8 | no `systemctl` in the jail, so the home-manager unit was not tried | — | **none**: the jail, not the kit |
+
+## W-1 — SATAN, informal: a router (2026-10-19)
+
+**Not an AC-1 walk**, for W-0's reasons. The task was the person's: one goad
+runs one backend, so SATAN wrote a router to front every backend it writes,
+with events SATAN emits routed by `kind` (`plan-log.md` 2026-10-19, *W-1:
+the router, and the live swap*).
+
+| column | value |
+|---|---|
+| agent, model | as W-0 |
+| goad revision | `3814306`, as W-0. The kit SATAN read did **not** hold `fe6804d`: goad's `main` was not pushed and `~/notes`' lock was not moved, so W0-4 and W0-5's fixes were not tested by this walk |
+| turns, wall time, tokens, cost, fetch attempts | not recorded |
+| backend | `~/satan-corpus/goad/router/`: `backend.py`, `children.toml` (the routing table), `config.toml`, `events/`, `justfile`, `README.md`, `test_backend.py`. Children: the checklist (`../backend.py`) and `unwatched` |
+| verdict | `goad-check --config config.toml --event events/unwatched.json --event events/unknown-child.json`, run on the host by the orchestrator from the router's directory, with every child's state, `HOME` and `XDG_STATE_HOME` in scratch: **accepted, status 0**. Views from both children were answered; the checklist's chain reached the checker's bound of 8 once |
+| person-run | swapped live: `~/.config/goad/config.toml` links to the router's (the old one kept as `config.toml.checklist`), the unit restarted, and `goad-emit --source satan --kind nobody` through the default config was accepted, status 0. The person seeing a view through the router is pending |
+
+SATAN's handback, verbatim: `walks/satan-1-ISSUES.md`.
+
+### Friction
+
+| # | item | kit before | disposition |
+|---|---|---|---|
+| W1-1 | the skill SATAN loaded was byte-identical to W-0's | — | **none**: the orchestrator's. `fe6804d` reaches SATAN when goad's `main` is pushed and `~/notes`' lock is moved |
+| W1-2 | `goad-check` cannot set `now` | `checking.md` states it | **follow-up**: W0-1 |
+| W1-3 | only the first option is answered | `checking.md` states it | **follow-up**: W0-3 |
+| W1-4 | each backend redirects its state its own way, so a router's check must know every child's convention | `checking.md` advises `HOME`/`XDG_*` | **follow-up**: W0-7, widened. Scratch `HOME`/`XDG_*` by default would make one convention enough; SATAN proposes `goad-check --env K=V`, or a protocol-level state directory |
+| W1-5 | a backend never learns its view's `view_id`, so a router remembers only which child it last showed, correct because one view is outstanding (R-31) | `fe6804d`'s *Asking a sequence of questions* states the reliance; SATAN read the kit without it | **none**: covered by W0-5's fix |
+| W1-6 | a router merging children's `next_check` reimplements the span grammar | `scheduling.md` states the grammar | **follow-up**: a second implementation of one grammar. Candidates: a `goad-check` subcommand that resolves a `next_check`, or a kit example router. The kit ships no SDK (brief §15.2), so this is the user's call |
+| W1-7 | an event has no routing field, so `kind` doubles as the child's name | — | **follow-up**: a `target` key is a wire change (additive; SPEC-001) |
+| W1-8 | `goad-emit` has no `--config`; without `--socket` it reads only the default config's ingress path | `events.md` states it | **follow-up**: a `goad-emit` option, not a kit fix (code) |
+| W1-9 | goad refuses unknown config keys, so a router's table needs a second file | `running.md` states it | **follow-up**: a deliberate strictness (`goad_shell::config`, `deny_unknown_fields`); room for backend-owned keys would be a config-format change |
+| W1-10 | SATAN read the checker's bound of 8 as a limit on what one goad request can walk | `checking.md` gave the bound, and did not say goad has none | **kit fix**: `checking.md` says the bound is the checker's alone. Commit `4473c7d` |
+| W1-11 | state under `$HOME` is invisible to a jailed reader, and the kit recommends XDG directories | `checking.md` | **none**: SATAN's jail, not the kit; SATAN now keeps its backends' state beside them in the corpus |

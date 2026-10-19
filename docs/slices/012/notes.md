@@ -7966,6 +7966,11 @@ goad code at `031513e` (unpushed; `2f1bf47` is the last push); `goad-walk` at
   the first (W0-3); scratch `HOME`/`XDG_*` by default, with an opt-out
   (W0-7). Each changes the checker's command line or run, which `design.md`
   §5.2.1 and §5.2.2 settle.
+- **W-1's follow-ups** (`walks.md` W-1): W0-7 widened, since a router's
+  check must know each child's state convention (W1-4); a router
+  reimplements the span grammar to merge `next_check`s (W1-6); an event has
+  no routing field, a wire change (W1-7); `goad-emit` has no `--config`
+  (W1-8); goad's config has no room for backend-owned keys (W1-9).
 - **A config cannot travel with its backend** (`walks.md` W0-6): `command`
   resolves against goad's working directory (SPEC-001/R-36). Resolving
   against the config's directory is a SPEC-001 change, its own slice.
