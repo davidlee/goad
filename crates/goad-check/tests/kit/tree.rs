@@ -12,8 +12,8 @@ pub(crate) fn root() -> PathBuf {
 /// Every regular file under `dir`, recursively, sorted. A unix socket is
 /// skipped by type: a host run on an example's config leaves one there,
 /// wherever the host started, because a relative `ingress.path` resolves
-/// beside the config (slice 012 PHASE-06 A-V6), and opening it fails. Anything else (a
-/// symlink) is not expected.
+/// beside the config (slice 012 PHASE-06 A-V6), and opening it fails.
+/// Anything else (a symlink) is not expected.
 pub(crate) fn files(dir: &Path) -> Vec<PathBuf> {
   let mut found = Vec::new();
   for entry in

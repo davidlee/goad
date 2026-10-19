@@ -69,7 +69,7 @@ fn copy_tree(from: &Path, to: &Path) {
 /// A temporary directory per `case` and example, left after the run so a
 /// failure can be read; the pid last, so it cannot end `.sock`. A helper of
 /// `tests/support/scripting.rs` `claim`'s class, unheld by it for the reason
-/// `claim`'s doc gives `goad-emit`'s two: including the file costs `dead_code`.
+/// `claim`'s doc gives every unheld one: including the file costs `dead_code`.
 fn handout(case: &str, example: &Path) -> Handout {
   let name = example.file_name().expect("an example has a name");
   let root = std::env::temp_dir().join(format!(

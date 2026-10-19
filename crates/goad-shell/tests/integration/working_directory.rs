@@ -7,7 +7,8 @@
 //! Every case loads its configuration from a file with `Config::load`, in a
 //! directory of its own: the test binary's working directory — the crate — is
 //! never the configuration's, which is what makes each case red under the old
-//! rule. Each backend is written by its case, beside the configuration.
+//! rule. Whatever a case puts on disk — a backend, a decoy, a log — it writes
+//! into that directory.
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -45,10 +46,12 @@ fn directory(case: &str) -> PathBuf {
   path
 }
 
-/// `design.md` §5.2's I-1, for the string anchor: `PWD`, the socket path and
-/// its byte length all see the **target** directory, not the link that led to
-/// it. Not observable at the spawn, where a working directory reached through
-/// a directory link *is* the target directory.
+/// `design.md` §5.5's I-1, for the string anchor: the command's working
+/// directory and the socket path name the **target** directory, not the link
+/// that led to it. A link in a directory component leaves the kernel's working
+/// directory the same either way — a directory reached through a link is the
+/// target directory — so it is held on the loaded value, from which `PWD`, a
+/// relative program's name and the socket path are all taken.
 #[test]
 fn a_config_reached_through_a_linked_directory_is_anchored_at_the_target() {
   let root = directory("linked");

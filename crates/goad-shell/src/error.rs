@@ -28,7 +28,8 @@ pub enum BackendError {
   /// `executable` is the path the host executed and `working_directory` the
   /// directory it ran in: once a program is looked for beside its
   /// configuration, the error alone does not say where that was. `None` is a
-  /// command with no file, which runs where its caller runs (SPEC-001/R-60).
+  /// command with no file, which runs where its caller runs (`design.md` D2);
+  /// SPEC-001/R-60 governs only a command loaded from a file.
   Spawn {
     executable: PathBuf,
     working_directory: Option<PathBuf>,
@@ -116,8 +117,9 @@ pub enum StateError {
 #[derive(Debug)]
 pub enum ConfigError {
   /// The file could not be read: it is missing or unreadable, a link to
-  /// nothing, or a path that names no file in a directory — which
-  /// canonicalization refuses for `/dev/stdin` and `/proc/self/fd/N`.
+  /// nothing, `/`, or a descriptor that is not a file — `/dev/stdin` or
+  /// `/proc/self/fd/N` on a pipe or a socket, which canonicalization refuses.
+  /// On a regular file either path canonicalizes to that file and loads.
   Read(std::io::Error),
   /// Not TOML, or TOML that is not this shape — a missing section, a missing
   /// key, a value of the wrong type. `toml`'s own message carries the line, the

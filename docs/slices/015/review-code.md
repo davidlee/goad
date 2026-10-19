@@ -116,16 +116,16 @@ Lines of attack:
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | minor | | |
-| F-2 | minor | | |
-| F-3 | minor | | |
-| F-4 | minor | | |
-| F-5 | nit | | |
-| F-6 | nit | | |
-| F-7 | nit | | |
-| F-8 | nit | | |
-| F-9 | nit | | |
-| F-10 | nit | | |
+| F-1 | minor | doc-wrong | |
+| F-2 | minor | fix-now | |
+| F-3 | minor | doc-wrong | |
+| F-4 | minor | fix-now | |
+| F-5 | nit | fix-now | |
+| F-6 | nit | fix-now | |
+| F-7 | nit | fix-now | |
+| F-8 | nit | fix-now | |
+| F-9 | nit | fix-now | |
+| F-10 | nit | fix-now | |
 
 ### F-1 — R-60 and R-17 promise "the joined path", but the join drops `.` and no rule says so
 
@@ -154,8 +154,26 @@ a second implementation held to SPEC-001 that joins literally passes every
 stated MUST and hands a script `$0` = `/dir/./backend.sh`, and binds a socket
 path two bytes longer — the 107-byte budget R-17's own length clause is about.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong — confirmed by the person (`design-log.md` 2026-10-19, *code review round 1 dispositions*).
+**Response:** `canon-delta.md` SPEC-001 Change 1 (R-60): the join gains *"each `.`
+component dropped and each `..` kept as written"*, after *"joined onto the
+same directory"*. SPEC-003 Change 1 (R-17): *"It is joined onto that
+directory as SPEC-001/R-60 joins a relative program: each `.` component
+dropped, each `..` kept."*, after its first sentence. Both in the endorsed
+words, unparaphrased; the **Status** line records the amendment.
+`running.md` *Name your command*: the program receives *"the config file's
+directory joined with that path as its name, with each `.` part dropped and
+each `..` kept: `./backend.sh` arrives as `<directory>/backend.sh`"*. Class
+check in code: `config.rs` — `anchored`'s doc said *interior* `.` components
+(a leading one is dropped too) and *"`.` alone"*; now *each* `.` and *"a path
+of `.` components only"*; the same *"the one spelling"* claim in
+`tests::a_relative_path_resolves_against_the_directory_given`'s doc was false
+beside its own `./` row, now reworded. Left for the person, not edited:
+`canon-delta.md` §6.4's *"is executed by its path beside the file and
+receives that path as its name"* and Change 1's **Why** *"receives the joined
+path"* — both now lean on R-60's amended definition of the join and read
+true by it; §6.4 does not restate the `.` rule. Whether it should is wording
+beyond the endorsed text.
 
 **Outcome:**
 
@@ -184,8 +202,20 @@ libc `realpath`). Confirms the audit's lead. Failure scenario: a person
 reading the doc concludes `goad /dev/stdin < config.toml` is refused, when it
 loads and runs the backend in the config's directory.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person. The `design.md` D4 / §5.2 overstatement is recorded in `audit.md` *Design drift not reconciled* (already there; reworded to cite this finding).
+**Response:** `error.rs` — `ConfigError::Read`'s doc: missing or unreadable, a link to
+nothing, `/`, or a descriptor that is not a file (`/dev/stdin` or
+`/proc/self/fd/N` on a pipe or a socket, which canonicalization refuses); on
+a regular file either path canonicalizes to that file and loads.
+`config.rs` — `Config::load`'s `# Errors`: `Read` if the path does not
+canonicalize (missing, dangling link, a non-file descriptor such as
+`/dev/stdin` on a pipe), if it is `/` (no parent directory — the only input
+the `parent()` arm reaches), or if the file is unreadable; and
+`/dev/stdin` redirected from a regular file is that file, read and anchored
+at its directory. Doc lines only: `git diff 024643d -- crates/goad-shell/src/ | grep '^[-+]' | grep -vE '^(\+\+\+|---)' | grep -vE '^[-+][[:space:]]*//'`
+prints nothing (exit 1): every changed line under `crates/goad-shell/src/`
+is a `///`, `//!` or `//` line, so the person's no-VH-1-re-run condition
+holds (`config.rs`, `error.rs`; nothing under `backend/` changed).
 
 **Outcome:**
 
@@ -218,8 +248,18 @@ instrument is sound; the claim that nothing else could hold it is not.
 that a reader can falsify in one python line, and a future reviewer asking
 "why no spawn case?" is told something untrue.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong — confirmed by the person.
+**Response:** `canon-delta.md` SPEC-001 Change 3 (R-60's §7 row): *"is not observable at
+the spawn — … — so it is held on the loaded value:"* replaced by the endorsed
+*"leaves the kernel's working directory the same either way — a directory
+reached through a link is the target directory — so it is held on the loaded
+value, from which `PWD`, a relative program's name and the socket path are
+all taken:"*. `working_directory.rs` —
+`a_config_reached_through_a_linked_directory_is_anchored_at_the_target`'s
+doc: the same reason in the same terms, and it now names what the case
+asserts (the command's working directory and the socket path) instead of
+*"`PWD`, the socket path and its byte length"*, which the case does not
+assert directly.
 
 **Outcome:**
 
@@ -253,8 +293,20 @@ author trusts "goad-emit's two" when checking a new kind against what the
 others mint — the check `claim`'s doc says must be done by reading, not by
 name.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** Class grep (`grep -rn 'helper' crates tests --include=*.rs` for counted or
+ordinal references to `claim`'s class) found the three named and a fourth:
+`crates/goad/tests/renderer/ingress.rs` — `socket_path`'s doc, *"made by
+four more helpers — … and two in `goad-emit`"*. Each now points at `claim`'s
+doc, which names every helper held and unheld, instead of counting:
+`crates/goad-shell/tests/integration/ingress.rs::socket_path` (*"the other
+helpers of this class mint paths of their own — `claim`'s doc names each"*),
+`crates/goad-check/tests/kit/examples.rs::handout` (*"the reason `claim`'s
+doc gives every unheld one"*), `crates/goad/tests/renderer/startup.rs` —
+`listener::socket_path` (*"a helper of `claim`'s class, held by it as every
+such helper in this test binary is"*), and
+`crates/goad/tests/renderer/ingress.rs::socket_path` (*"made by every helper
+of `claim`'s class … `claim`'s own doc names each"*).
 
 **Outcome:**
 
@@ -280,8 +332,14 @@ doc; `working_directory.rs` —
 **Evidence:** `design.md` §7 rows D2, D3, D5, D6; §5.5 I-1; `canon-delta.md`
 R-60's first sentence.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** `config.rs` —
+`tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash`'s
+doc cites D5 for the `/` rule and D6 for `PATH`. `working_directory.rs` —
+`a_config_reached_through_a_linked_directory_is_anchored_at_the_target`'s
+doc cites `design.md` §5.5's I-1. `error.rs` — `BackendError::Spawn`'s doc
+cites `design.md` D2 for `None` and says R-60 governs only a command loaded
+from a file. Doc lines only (see F-2's check).
 
 **Outcome:**
 
@@ -306,8 +364,14 @@ already names (the file is also included by `event_loop_schedule`, which
 would not use it), so the copies are defensible — the shared shape is not.
 **Evidence:** `grep -n 'goad-wd-' crates -r` → both helpers.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** `crates/goad/tests/renderer/startup.rs` — `listener::directory` now mints
+`goad-startup-<case>-<pid>.d` (the `wd` residue gone); its doc says the
+`.d` keeps it apart from a `marker` path and from `listener::socket_path`'s
+`.sock`, which shares the prefix. `working_directory.rs::directory` keeps
+`goad-wd-<case>-<pid>.d`. `tests/support/scripting.rs` — `claim`'s doc lists
+both shapes, `goad-startup-<name>-<pid>.d` and `goad-wd-<name>-<pid>.d`,
+among the held helpers' paths; it names each helper and counts none.
 
 **Outcome:**
 
@@ -329,8 +393,17 @@ pid's. Confirms the audit's lead.
 **Evidence:** `grep -n remove_dir_all crates/goad-check/tests/binary/run.rs`
 → only the clear inside `root`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** `crates/goad-check/tests/binary/run.rs` —
+`a_program_with_no_slash_is_found_on_path_not_beside_the_config` and
+`the_argv_form_runs_a_relative_program_from_the_caller_s_directory` each end
+with `remove_dir_all(&root)`, as the slice's other directory helpers' cases
+do (`working_directory.rs`, `startup.rs`, `exchange.rs`); `root`'s doc says
+its case removes it on success and a failing case leaves it to be read.
+This file's older cases log to `scripting` markers, a different (single-file)
+class cleared at hand-out; the directory helpers were the closer precedent.
+Observed after the gate run: no `goad-check-*.d` directory for that run's
+pid remained under `/tmp` (older runs' remain; not removed by this repair).
 
 **Outcome:**
 
@@ -355,8 +428,24 @@ inside `home` (the case already owns one) removes it. Confirms the audit's
 lead, with the consequence corrected: a hang, not a masked green.
 **Evidence:** `emit_from(&std::env::temp_dir(), &home, …)`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** `crates/goad-emit/tests/binary/exchange.rs` —
+`a_relative_configured_socket_is_found_beside_the_configuration` starts
+`goad-emit` in `<home>/start`, a directory the case creates inside its own
+`config_home` and removes with it; the doc says nothing listens there, so a
+`goad-emit` that connected to `./goad.sock` is refused rather than hanging
+the join. **Natural red** under the guarded regression, scratchpad
+copy-and-restore: `config.rs::ingress_config`'s `path` set to
+`{ let _ = directory; Path::new(&file.path).to_path_buf() }` (a first
+spelling without `let _ = directory` did **not** compile — `unused variable`
+under `-D warnings` — and was discarded, not counted); `cargo test -p
+goad-emit --no-fail-fast`, compiled; red:
+`exchange::a_relative_configured_socket_is_found_beside_the_configuration` —
+*"goad-emit: nothing is listening at ./goad.sock: No such file or directory"*,
+status 2, not 0, no hang — and
+`main.rs::tests::a_configured_ingress_path_is_what_is_written_to` (left
+`./from-config.sock`). Restored by copy; `config.rs` afterwards differs from
+`024643d` in comment lines only, `git status` shows no untracked file.
 
 **Outcome:**
 
@@ -385,8 +474,20 @@ lead, with the consequence corrected: a hang, not a masked green.
   linked case writes its decoy beside the link, not the configuration.
 **Evidence:** the quoted lines, by symbol or heading.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** Kit `breadcrumbs/README.md` and `downloads-triage/README.md` *Run your own
+copy*: *"so goad finds both, and `goad-check` the backend, wherever you start
+them"*; fences untouched. `running.md` *Name your command*: a relative
+`PATH` entry *"is relative to that directory"*; and *"the config file and
+your backend can move together"* (the audit's *the file* nit, same class).
+`config.rs` — `Command`'s doc opens *"What to spawn and where: a program,
+its arguments and its working directory."*; `Config::parse`'s doc *"the only
+caller that needs to"*. `working_directory.rs` module doc: *"Whatever a case
+puts on disk — a backend, a decoy, a log — it writes into that directory"*
+(the case's own). Left for the person: `canon-delta.md` §6.4's *"a relative
+entry in `PATH` names a directory under the backend's working directory"*
+carries the same *under* looseness as the kit line did; endorsed canon
+wording, so not edited.
 
 **Outcome:**
 
@@ -404,8 +505,14 @@ gate does not see it.
 **Evidence:** `awk 'length > 85'` over the three files. Confirms the audit's
 lead for `config.rs` and `startup.rs`; `tree.rs` is the reviewer's.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person.
+**Response:** Reflowed: `config.rs` —
+`tests::a_relative_path_resolves_against_the_directory_given`'s doc;
+`crates/goad-check/tests/kit/tree.rs` — `files`' doc; `startup.rs` —
+`listener::directory`'s doc. Class check over every comment line this slice
+added (`git diff -U0 c68a624 -- '*.rs'`, added `//` lines over 80 columns):
+those three, and one 81-column line in `round_trip.rs`, which matches that
+file's own wrap (it has lines to 84) and was left.
 
 **Outcome:**
 

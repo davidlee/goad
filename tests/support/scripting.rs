@@ -94,8 +94,9 @@ static CLAIMED: LazyLock<Mutex<BTreeSet<(&'static str, String)>>> = LazyLock::ne
 /// concept and it is not the prefix either: the held helpers mint
 /// `goad-<name>-<pid>`, `goad-serve-<name>-<pid>.sock`,
 /// `goad-startup-<name>-<pid>.sock`, `goad-ingress-<name>-<pid>.sock`,
-/// `goad-wd-<name>-<pid>.d` and `goad-check-<name>-<pid>.d`, and `marker`'s
-/// prefix is the bare `goad-` that all of them share (F-21). What holds a
+/// `goad-startup-<name>-<pid>.d`, `goad-wd-<name>-<pid>.d` and
+/// `goad-check-<name>-<pid>.d`, and `marker`'s prefix is the bare `goad-`
+/// that all of them share (F-21). What holds a
 /// marker's paths apart from every other helper's is that the pid comes
 /// **last**, so a marker path ends in digits and can never end `.sock` or
 /// `.d`, whatever it is named (F-23) — and `goad-emit`'s unheld helpers are

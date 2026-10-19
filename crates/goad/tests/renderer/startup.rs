@@ -817,8 +817,8 @@ mod listener {
   use crate::scripting::claim;
 
   /// A path no other case will collide with, cleared before it is handed out —
-  /// the third such helper in this test binary, and held by the same
-  /// instrument as the other two (`review-code.md` F-11). The stake is the
+  /// a helper of `claim`'s class, held by it as every such helper in this test
+  /// binary is (`review-code.md` F-11). The stake is the
   /// same one `ingress.rs` names: two cases sharing a name share a listener,
   /// and `cleanup` below unlinks the lock file beside the socket, so the
   /// second case to start would clear the first's mid-run.
@@ -839,11 +839,12 @@ mod listener {
   }
 
   /// A directory of this case's own, emptied before it is handed out — held
-  /// by `claim` under a kind of its own. Its name ends `.d` after the pid, so it can never equal a
-  /// `marker` path, which ends in the pid (`claim`, *one kind per helper*).
+  /// by `claim` under a kind of its own. Its name ends `.d` after the pid, so
+  /// it can never equal a `marker` path, which ends in the pid, nor
+  /// `socket_path`'s, which ends `.sock` (`claim`, *one kind per helper*).
   fn directory(case: &str) -> PathBuf {
     claim("startup directory", case);
-    let path = std::env::temp_dir().join(format!("goad-wd-{case}-{}.d", std::process::id()));
+    let path = std::env::temp_dir().join(format!("goad-startup-{case}-{}.d", std::process::id()));
     match std::fs::remove_dir_all(&path) {
       Ok(()) | Err(_) => (),
     }

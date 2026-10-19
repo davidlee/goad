@@ -333,9 +333,11 @@ fn the_bytes_on_the_socket_normalize_to_the_event_that_was_sent() {
 /// configuration names a socket beside **that file**, not in the directory
 /// `goad-emit` was started in — the socket the host binds from the same file.
 ///
-/// The status is asserted before the listener is joined: it blocks in
-/// `accept`, and a `goad-emit` that connected elsewhere would hang the join
-/// instead of failing the case.
+/// `goad-emit` starts in a directory of the case's own, where nothing
+/// listens, so one that connected to `./goad.sock` there is refused. The
+/// status is asserted before the listener is joined: it blocks in `accept`,
+/// and a `goad-emit` that connected elsewhere would hang the join instead of
+/// failing the case.
 #[test]
 fn a_relative_configured_socket_is_found_beside_the_configuration() {
   let home = config_home("relative-config");
@@ -349,12 +351,10 @@ fn a_relative_configured_socket_is_found_beside_the_configuration() {
     .expect("the configuration's directory exists")
     .join("goad.sock");
   let listener = fake_listener(&beside, r#"{"protocol":1,"accepted":true}"#);
+  let start = home.join("start");
+  std::fs::create_dir(&start).expect("the start directory must be creatable");
 
-  let output = emit_from(
-    &std::env::temp_dir(),
-    &home,
-    &["--source", "w", "--kind", "k"],
-  );
+  let output = emit_from(&start, &home, &["--source", "w", "--kind", "k"]);
 
   let code = code_of(&output);
   let stderr = stderr_of(&output);

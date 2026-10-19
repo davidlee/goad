@@ -464,7 +464,8 @@ fn a_probe_failure_on_another_side_is_not_charged_with_r56() {
 /// A directory of this case's own under `std::env::temp_dir()`, emptied before
 /// it is handed out and held by `claim` under a kind of its own. The name ends
 /// `.d` after the pid, so it can never equal a `marker` path, which ends in
-/// the pid (`claim`, *one kind per helper*).
+/// the pid (`claim`, *one kind per helper*). Its case removes it on success; a
+/// failing case leaves it, so the failure can be read.
 fn root(case: &str) -> PathBuf {
   scripting::claim("checker root", case);
   let path = std::env::temp_dir().join(format!("goad-check-{case}-{}.d", std::process::id()));
@@ -545,6 +546,7 @@ fn a_program_with_no_slash_is_found_on_path_not_beside_the_config() {
     "{labels:?}: {}",
     report_of(&output)
   );
+  std::fs::remove_dir_all(&root).expect("the case's directory must be removable");
 }
 
 /// The argv form names a command, not a file, so it has no directory of its
@@ -564,4 +566,5 @@ fn the_argv_form_runs_a_relative_program_from_the_caller_s_directory() {
 
   assert_eq!(code_of(&output), 0, "{}", report_of(&output));
   assert!(!labels(&log).is_empty(), "the backend never ran");
+  std::fs::remove_dir_all(&root).expect("the case's directory must be removable");
 }

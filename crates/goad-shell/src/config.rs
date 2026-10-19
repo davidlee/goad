@@ -70,7 +70,8 @@ pub struct BackendConfig {
   pub timeout: std::time::Duration,
 }
 
-/// What to spawn: a program and its arguments.
+/// What to spawn and where: a program, its arguments and its working
+/// directory.
 ///
 /// An argument vector, never a shell string: no quoting rules and no injection
 /// surface, and it is what makes `["bash", "./backend.sh"]` work without a
@@ -204,9 +205,12 @@ impl Config {
   ///
   /// # Errors
   ///
-  /// `ConfigError::Read` if the file is missing or unreadable, is a dangling
-  /// link, or names no file in a directory; otherwise whatever
-  /// [`Config::parse`] reports.
+  /// `ConfigError::Read` if the path does not canonicalize — the file is
+  /// missing, a dangling link, or a descriptor that is not a file, such as
+  /// `/dev/stdin` on a pipe — or if it is `/`, which has no parent directory,
+  /// or if the file is unreadable; otherwise whatever [`Config::parse`]
+  /// reports. `/dev/stdin` redirected from a regular file is that file: it is
+  /// read, and anchored at that file's directory.
   pub fn load(path: &Path) -> Result<Self, ConfigError> {
     let canonical = std::fs::canonicalize(path).map_err(ConfigError::Read)?;
     let directory = canonical.parent().ok_or_else(|| {
@@ -225,7 +229,7 @@ impl Config {
   /// text rather than the file, so the tests that state them need no filesystem.
   /// The relative paths in `text` resolve against `directory`, used as given;
   /// `load` hands it the file's canonical directory and is the only caller
-  /// that need.
+  /// that needs to.
   ///
   /// # Errors
   ///
@@ -271,11 +275,11 @@ fn ingress_config(file: &FileIngress, directory: &Path) -> Result<IngressConfig,
 /// `path` joined onto `directory`: the one join, shared by the executable and
 /// the socket path.
 ///
-/// Interior `.` components are dropped, so `./goad.sock` is
+/// Each `.` component is dropped, so `./goad.sock` is
 /// `<directory>/goad.sock` and spends no bytes of a socket address's 107 on
 /// `/./`. `..` is kept: folding it lexically is wrong across links. An
-/// absolute `path` is returned as is. `.` alone anchors to `directory`
-/// itself, with no trailing separator.
+/// absolute `path` is returned as is. A path of `.` components only anchors
+/// to `directory` itself, with no trailing separator.
 fn anchored(directory: &Path, path: &Path) -> PathBuf {
   if path.is_absolute() {
     return path.to_path_buf();
@@ -549,9 +553,10 @@ default_poll = "30m"
   /// no filesystem in the way, so the answer is byte-exact — compared as an
   /// `OsStr`, because `Path` equality ignores an interior `.` and would not
   /// see the very thing under test. It is the socket path's length (`sun_path`
-  /// is 107 bytes) that an interior `.` would otherwise spend. A `..` is kept, because folding it lexically is wrong
-  /// across links. `.` alone names the directory itself, with no trailing
-  /// separator, and is the one spelling whose remainder is empty.
+  /// is 107 bytes) that an interior `.` would otherwise spend. A `..` is kept,
+  /// because folding it lexically is wrong across links. A path of `.`
+  /// components only, `.` or `./`, leaves nothing to join and names the
+  /// directory itself, with no trailing separator.
   #[test]
   fn a_relative_path_resolves_against_the_directory_given() {
     for (written, anchored) in [
@@ -582,8 +587,9 @@ default_poll = "30m"
     }
   }
 
-  /// D3: only a relative program **with a slash** is the config's; a bare name
-  /// is the environment's to look up, and an absolute one is already anchored.
+  /// D5: only a relative program **with a slash** is the config's; D6: a bare
+  /// name is the environment's to look up on `PATH`. An absolute one is
+  /// already anchored.
   #[test]
   fn the_executable_is_anchored_only_for_a_relative_path_with_a_slash() {
     let anchored = |program: &str| Command {

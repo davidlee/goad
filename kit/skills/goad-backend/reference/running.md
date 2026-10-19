@@ -19,16 +19,19 @@ Your backend runs in the config file's directory, wherever goad, or
 `goad-check`, is started. The directory is found through any symbolic links,
 so a config file reached through a link runs your backend beside the link's
 target. `["python3", "backend.py"]` runs the `backend.py` beside the config
-file, and the file and your backend can move together as one directory.
+file, and the config file and your backend can move together as one
+directory.
 
 Each argument is passed as written; the host never rewrites one. The program
 is the one element the host locates:
 
 - a relative path with a `/`, such as `./backend.sh`, is the one beside the
-  config file, and your program receives that joined path as its name;
+  config file. Your program receives the config file's directory joined with
+  that path as its name, with each `.` part dropped and each `..` kept:
+  `./backend.sh` arrives as `<directory>/backend.sh`;
 - a name with no `/`, such as `python3`, is looked up on `PATH`, after the
-  move into the config file's directory, so a relative `PATH` entry names a
-  directory under it;
+  move into the config file's directory, so a relative `PATH` entry is
+  relative to that directory;
 - an absolute path is used as written.
 
 Relative paths used to mean the directory goad was started in. A config file

@@ -45,10 +45,10 @@ not its path.
 ## Run your own copy
 
 `command` and `[ingress] path` are relative to the config file's directory,
-so goad and `goad-check` find both wherever you start them. A running host
-writes `goad.sock` and `goad.sock.lock` beside the config file, and an
-installed kit is read-only, so copy this directory out and run your copy. Its
-config needs no edit:
+so goad finds both, and `goad-check` the backend, wherever you start them.
+A running host writes `goad.sock` and `goad.sock.lock` beside the config
+file, and an installed kit is read-only, so copy this directory out and run
+your copy. Its config needs no edit:
 
 ```toml goad:config
 # `command` and the socket are relative to this file's directory, wherever
