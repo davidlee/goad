@@ -155,3 +155,20 @@ other, citing the finding id.
 - **Decided:** "yeah what you said, no rerun. confirmed" — all dispositions
   and both wordings as proposed; no VH-1 re-run, on condition that audit
   records (by diff) that every repair under those modules is doc-only.
+
+### 2026-10-19 — code review round 2, residues, and canon promotion (audit)
+
+- **Asked:** (1) `review-code.md` F-11, F-12 `fix-now`. (2) F-13: `canon-delta.md`
+  §6.4's *"a relative entry in `PATH` names a directory under the backend's
+  working directory"* becomes *"a relative entry in `PATH` is resolved against
+  the backend's working directory"*. (3) §6.4 does not restate R-60's
+  `.`-dropping rule — leave it. (4) Fix now, by symbol, the line-number
+  citations `design.md:1236` (`error.rs`, `ConfigError`'s doc), `design.md:1134`
+  (`config.rs`, `tests::GOOD`'s doc) and `tests/integration/ingress.rs:1296`
+  (goad-emit `exchange.rs`, `fake_listener`'s doc) — doc comments only. (5) R-60's
+  §7 row does not cite the `PWD` case or VT-9. (6) The kit does not cite R-60 /
+  R-17 after promotion. (7) Endorse promoting `canon-delta.md`, with the F-1,
+  F-3 and F-13 amendments, into SPEC-001 and SPEC-003 now, ahead of slice
+  012's R-59; and stop review rounds on the measured trend (two rounds, no
+  code defect) in favour of mechanical verification.
+- **Decided:** "confirm." — all seven as proposed.
