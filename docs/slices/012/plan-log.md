@@ -489,3 +489,23 @@ executor resumes.
   name the case; `design.md` §9's kit tier names it. `canon-delta.md` names
   none of PHASE-08's tests and is unchanged. The sheet's VT-2 box is
   unblocked.
+
+### 2026-10-19 — W-0: SATAN writes a backend; two kit fixes ahead of PHASE-09
+
+- **Asked:** the person's aim for the kit is SATAN, their pi-based assistant,
+  writing its own backends; the capsule (PHASE-11) is hours off. SATAN, a
+  jailed pi session with the kit loaded by `--skill` (wired in `~/notes`'
+  flake, outside this repository), wrote `~/satan-corpus/goad/unwatched/`
+  from the person's own prompt. Its handback and the orchestrator's check
+  gave eight friction items. Asked to record them, fix the kit now, and
+  leave follow-ups for later.
+- **Decided:** *"record those dispositions, etc. kit fixes now, follow ups
+  later"*.
+- **Consequence:** `walks.md` is created ahead of PHASE-09, holding W-0, an
+  informal walk that counts toward no criterion (not a capsule, no negative
+  control, neither agent AC-1 names, not the fixed prompt);
+  `walks/satan-0-ISSUES.md` holds the handback. W0-4 and W0-5 are fixed (`fe6804d`) in
+  `protocol.md` now, a PHASE-10 surface used before PHASE-09: the kit fixes
+  are wire-neutral and canon-neutral, and PHASE-09's walks will measure the
+  fixed kit. W0-1, W0-2, W0-3, W0-6 and W0-7 are follow-ups in `notes.md`
+  §Open. PHASE-09, PHASE-10 and PHASE-11 are otherwise unchanged.

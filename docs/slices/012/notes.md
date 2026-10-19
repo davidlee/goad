@@ -7960,6 +7960,16 @@ goad code at `031513e` (unpushed; `2f1bf47` is the last push); `goad-walk` at
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
 
+- **W-0's checker follow-ups** (`walks.md` W-0; `plan-log.md` 2026-10-19):
+  a way to set `now` (W0-1); per-view coverage in the report, since it warns
+  only when no view came back at all (W0-2); answering every option, not only
+  the first (W0-3); scratch `HOME`/`XDG_*` by default, with an opt-out
+  (W0-7). Each changes the checker's command line or run, which `design.md`
+  §5.2.1 and §5.2.2 settle.
+- **A config cannot travel with its backend** (`walks.md` W0-6): `command`
+  resolves against goad's working directory (SPEC-001/R-36). Resolving
+  against the config's directory is a SPEC-001 change, its own slice.
+
 - **`checking.md` and `events.md` head rules with ids only `canon-delta.md`
   holds**: `SPEC-001/R-59`, and `SPEC-004/R-8`, `R-9`, `R-10`, `R-11`,
   `R-12`, `R-13` (PHASE-08 D-7, X-3). Promotion at audit must keep those
