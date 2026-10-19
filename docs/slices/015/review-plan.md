@@ -96,21 +96,434 @@ Written by the orchestrator before the review. Surfaces to attack:
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | | | |
+| F-1 | major | | |
+| F-2 | minor | | |
+| F-3 | minor | | |
+| F-4 | minor | | |
+| F-5 | minor | | |
+| F-6 | minor | | |
+| F-7 | nit | | |
+| F-8 | nit | | |
+| F-9 | nit | | |
+| F-10 | nit | | |
+| F-11 | nit | | |
+| F-12 | nit | | |
+| F-13 | nit | | |
+| F-14 | nit | | |
 
-### F-1 — <one-line claim>
+Round 1 raised by a fresh Opus agent acting as **raiser** only: severity set,
+Disposition, Response and Outcome left blank. Plan read at `3190648`, tree at
+`2b0ed70`.
 
-**Severity:** blocker | major | minor | nit
-**Location:** `path:line` or `design.md §5.2`
+### F-1 — the three kit example `config.toml` files state the old rule, and no phase writes them
 
-**Expected:** <what the artefact or canon says should be true>
-**Observed:** <what is actually there>
-**Evidence:** <the citation that makes this checkable rather than an opinion>
+**Severity:** major
+**Location:** `plan.md` PHASE-03 Surfaces, EX-5, VA-1;
+`kit/skills/goad-backend/examples/{breadcrumbs,downloads-triage,focus-check}/config.toml`
 
-**Disposition:** aligned | fix-now | doc-wrong | follow-up | tolerated | settle-in-code
-**Response:** <the responder's reasoning, and what was changed>
+**Expected:** the design repairs "examples' configs and READMEs" (`design.md`
+§10, *Not canon, repaired in the slice*), and the slice's scope names "the
+examples' configs and READMEs that say to run goad from the example's
+directory" (`slice-015.md` §Scope; `research.md` T2-11: "Example configs and
+READMEs … say *run goad from this directory*"). A phase's closed Surfaces list
+holds every file its tasks must touch.
 
-**Outcome:** verified | contested | withdrawn
+**Observed:** each example's `config.toml` opens with the old rule as a
+comment — `` # `command` and the socket are relative to this directory: run
+goad and goad-check from here. `` (focus-check: `` `command` is relative to
+this directory … ``). Under R-60 the instruction *run from here* is false.
+PHASE-03 Surfaces lists the three READMEs, `watch.sh` and `chpwd.zsh`, and no
+`config.toml`; EX-5 speaks only of the READMEs; no other phase names them.
+PHASE-03/VA-1's grep (`absolute\|started in\|working directory\|from this
+directory`) matches neither comment line (`relative to this directory`, `from
+here`), so the agent check meant to catch survivors passes over them. Each
+README's `toml goad:config` fence also reproduces the same comment verbatim,
+so an agent repairing the README fence and leaving `config.toml` alone ships
+a README that no longer quotes the file it shows — or edits `config.toml`
+outside its Surfaces.
+
+**Evidence:** `git grep -n 'from here' -- kit` (three `config.toml` hits, three
+README fence hits); `plan.md` PHASE-03 **Surfaces**; `design.md` §10, last
+bullet.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-2 — `round_trip.rs::shell_example`'s doc becomes false at PHASE-04, and no phase or grep reaches it
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-04 Surfaces and VA-1;
+`crates/goad-shell/tests/integration/round_trip.rs::shell_example`
+
+**Expected:** after D9 nothing in the repository states the demo's old argv
+(PHASE-04 Objective: "nothing in the repository states the old rule").
+
+**Observed:** `shell_example`'s doc says *"`["bash", script]` is the argument
+vector `exercisers/demo.toml` names, so this runs the exerciser exactly as the
+demo does."* After PHASE-04/EX-1 the demo names `["bash", "shell/backend.sh"]`
+and runs in `exercisers/`; the helper runs an absolute script from the crate
+directory. `round_trip.rs` is in PHASE-01's and PHASE-02's Surfaces for other
+functions only. PHASE-04/VA-1's greps are `goad-demo.sock` (not in that doc)
+and a term grep scoped to `exercisers justfile .gitignore docs/memory/…`,
+which excludes `crates/`. The stale sentence survives every instrument the
+plan names. (`crates/goad-check/src/args.rs` `DEFAULT_TIMEOUT`'s doc also
+cites `demo.toml`, and stays true.)
+
+**Evidence:** `git grep -n 'demo.toml' -- crates`; `plan.md` PHASE-04/VA-1's
+pathspecs.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-3 — a phase may edit endorsed `canon-delta.md` for a renamed case without returning to the person
+
+**Severity:** minor
+**Location:** `plan.md` §Overview, *Test names are commitments*; every phase's
+Surfaces ("`design.md` §9 and `canon-delta.md` only for a renamed case")
+
+**Expected:** `canon-delta.md` **Status**: "wording endorsed by the person …
+Review may still change it; any change returns to the person." Its preamble:
+"Test names are `design.md` §9's; at audit each is re-pointed to the symbol
+that shipped."
+
+**Observed:** the plan lets an executing agent change test names inside the
+endorsed §7 rows "in the same commit" and record it in its phase sheet, with
+no consult. That changes endorsed wording mid-execution, and duplicates the
+audit's re-pointing step that `canon-delta.md` already assigns (and §Owed
+lists again).
+
+**Evidence:** `canon-delta.md` **Status** line and preamble; `plan.md`
+§Overview, the paragraph beginning *Test names are commitments*.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-4 — the `PWD` case's natural red is not pinned to the reason design §9 gives
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-02/VT-5 and Notes *Order*; `design.md` §9 row
+`the_backend_s_pwd_names_its_working_directory`
+
+**Expected:** design §9: red today "because `PWD` is inherited from the test
+process" — the backend runs and the case fails on the `PWD` assertion.
+`plan.md` §Sequencing treats the natural red as evidence ("a case written
+after its code never shows its natural red, only a mutation's").
+
+**Observed:** VT-5 says only "a `python3` backend logs `os.environ["PWD"]`".
+Written like the file's other cases — `["python3", "backend.py", <log>]`,
+relative, as the R-60 row's opening asks — then against PHASE-01's tree
+(spawn ignores the working directory) python cannot open `backend.py`, the
+exchange fails, and the recorded red is a missing script, not an inherited
+`PWD`. PHASE-02 Notes *Order* says "record the reds" without the assertion,
+unlike the mutation-evidence rule, which requires it. M9 still holds the
+behaviour; what is wrong is the natural red the sheet would record
+(`docs/memory/a-mutation-can-red-the-right-case-on-the-wrong-assertion.md`
+is the same class, for mutations). A `python3 -c` body, or recording each
+natural red's failing assertion, would close it.
+
+**Evidence:** `plan.md` PHASE-02/VT-5; `design.md` §9, *red today because*
+column of that row.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-5 — 012's PHASE-10 writes `crates/goad-check/tests/` as well as `kit/`; the plan guards only the kit, and only from PHASE-03
+
+**Severity:** minor
+**Location:** `plan.md` §Branch and worktree, *Staying current*; PHASE-03/EN-2;
+`docs/slices/012/plan.md` PHASE-10 Surfaces
+
+**Expected:** design R1 and `review-design.md` F-20: coordinate with PHASE-10
+"also as a writer of the same files".
+
+**Observed:** 012 PHASE-10's Surfaces are `kit/`, `crates/goad-check/src`
+(report wording) and `crates/goad-check/tests/`. 015 writes
+`crates/goad-check/tests/kit/tagged.rs` (PHASE-01),
+`tests/kit/{examples,main,tree,coverage}.rs` (PHASE-02) and
+`tests/binary/{run,process}.rs` (PHASE-03). The plan calls PHASE-10 a writer
+of "the same kit files as PHASE-03", gives a conflict rule for kit text only
+("012's text with 015's rule applied to it"), and checks *PHASE-10 in
+progress → STOP* at PHASE-03/EN-2 and at the merge only. PHASE-01 and
+PHASE-02 start with no such check, and a conflict in a test file has no
+stated resolution rule.
+
+**Evidence:** `docs/slices/012/plan.md` `## PHASE-10` **Surfaces**; `plan.md`
+PHASE-01 and PHASE-02 Surfaces and Entry.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-6 — `Spawn`'s directory-less `Display` (the argv form) has no named case
+
+**Severity:** minor
+**Location:** `plan.md` PHASE-02/EX-2, VT-6; `design.md` §5.2 *Errors*
+
+**Expected:** EX-2: the parenthesis "only when a directory is set"; design
+§5.2: the argv form's report "names the executable only". Each behaviour the
+design states has a case that fails without it.
+
+**Observed:** VT-6 holds the `Some` arm only. The `None` arm is left to
+"`error.rs`'s own tests", which the plan neither names nor describes. A
+`Display` that always prints `(in …)`, with an empty or `None`-shaped
+directory, is red under no case the plan names: `table.rs` row `T1` asserts
+the prefix, and `run.rs::an_unspawnable_command_is_reported_against_the_configuration`
+asserts a side word before the id.
+
+**Evidence:** `plan.md` PHASE-02 **Verification**; `crates/goad/tests/renderer/table.rs`
+row `T1` (`Prefixed("backend could not be spawned: ")`).
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-7 — the listener case's red run leaves a lock file the R5 note does not clean
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-01 Notes, *The listener case and R5*; VA-2
+
+**Expected:** VA-2: "`git status` … shows no socket, lock or config written
+into a crate directory".
+
+**Observed:** the note says the case "asserts no `goad.sock` is in the test's
+working directory and removes any it finds". `ingress::bind` opens the lock
+(`hold`) before `UnixListener::bind` (T2-8), so the red run also writes
+`crates/goad/goad.sock.lock` — the file `git status` *does* list (T2-S7), and
+one that would block `git worktree remove` at close. The VT-7 note says "the
+socket **and** its lock"; the listener note does not.
+
+**Evidence:** `research.md` T2-8, T2-S7; `crates/goad/tests/renderer/startup.rs`
+`listener::cleanup`, which removes both for this reason.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-8 — `goad-emit`'s binary case hangs instead of failing if it joins the listener first
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-01/VT-5
+
+**Expected:** a red case fails.
+
+**Observed:** `exchange.rs::fake_listener` blocks in `accept` on its thread. In
+VT-5's red run nothing connects at the config's directory, so a case that
+calls `join()` before asserting the exit status waits forever. The file's
+existing cases assert first (`an_accepted_envelope_exits_0_and_says_nothing`),
+but VT-5 is the first case there whose red run is expected, and the plan does
+not state the order.
+
+**Evidence:** `crates/goad-emit/tests/binary/exchange.rs::fake_listener` and
+`::an_accepted_envelope_exits_0_and_says_nothing`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-9 — `claim`'s enumeration is already short before this slice
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-01 Notes, *Temp directories, and `claim`*;
+`tests/support/scripting.rs::claim` doc
+
+**Expected:** the plan's repair: "rewrite that sentence to name the held and
+unheld helpers".
+
+**Observed:** "Six helpers … this holds four" is false today, not only after
+this slice: `crates/goad-check/tests/kit/examples.rs::handout` calls itself
+"a helper of `claim`'s class, unheld by it", and
+`crates/goad/tests/binary/exit_codes.rs::scratch_config` writes over its path
+at handout; neither is named. The rewrite has to start from `claim`'s own
+grep, not from the current list. The plan also does not carry `claim`'s rule
+that a new kind's prefix be checked against `marker`'s bare
+`goad-<name>-<pid>`.
+
+**Evidence:** `grep -rn 'process::id()' --include=*.rs crates tests`;
+`claim`'s doc paragraphs *Six helpers make that promise* and *One kind per
+helper*.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-10 — the reason given for keeping `config.rs`'s tests module last names the wrong instrument
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-01 Notes, "`config.rs`'s tests module stays last
+in the file (the boundary structure check)"
+
+**Expected:** a cited instrument holds what it is cited for.
+
+**Observed:** `crates/goad-boundary/tests/checks/structure.rs` skips each
+`#[cfg(test)]` item and resumes after it; its module doc says
+`crates/goad-shell/src` has files whose test module starts before their
+midpoint. It does not require a test module to be last. What fails on an
+item after the test module is clippy's `items_after_test_module` under the
+gate's `-D warnings`. The instruction is right; its reason sends a reader to
+the wrong file.
+
+**Evidence:** `structure.rs` module doc and `production_lines`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-11 — `ConfigError::Read`'s doc becomes incomplete, and `error.rs` is not in PHASE-01's Surfaces
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-01 Surfaces and Notes, *A-1's spelling*;
+`crates/goad-shell/src/error.rs` `ConfigError::Read`
+
+**Expected:** a variant's doc says what it carries.
+
+**Observed:** `Read`'s doc is "The file is missing or could not be read."
+After PHASE-01 it also carries A-1's `InvalidInput` arm ("names no file in a
+directory") and D4's tolerated `/dev/stdin`-style `NotFound`, neither of
+which is "missing". PHASE-01 does not list `error.rs`; PHASE-02 lists it for
+`BackendError::Spawn` only.
+
+**Evidence:** `error.rs` `enum ConfigError`; `design.md` D4.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-12 — the `justfile` `package` comment's count cannot be repaired by naming, and the sentence omits the kit sockets
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-04 Notes, "name them or drop the number"
+
+**Expected:** the edited sentence is true.
+
+**Observed:** the comment says the checkout holds "`.claude/worktrees/`, six
+gitignored worktrees". Today `git worktree list` shows the main checkout only
+and `.claude/worktrees/` does not exist, so there is nothing to name; only
+dropping the number is open. The same sentence lists the checkout's sockets
+as `goad-demo.sock` alone, while the kit examples' `goad.sock` files, present
+in this checkout, break a `path:` copy the same way.
+
+**Evidence:** `git worktree list`; `ls kit/skills/goad-backend/examples/*/goad.sock`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-13 — VH-1's steps 1 and 2 start two hosts on one socket
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-04/VH-1
+
+**Expected:** a person's script that runs as written.
+
+**Observed:** step 1 starts goad on `demo.toml`; step 2 starts it through a
+link to the same file, so on the same anchored `exercisers/goad-demo.sock`.
+With the step-1 window still open, step 2 is refused *in use by a live host*
+(SPEC-003/R-3) and exits 2, which a person could read as the link case
+failing. Step 3 needs one host running. The plan does not say to close the
+first before the second, or which host step 3 reaches.
+
+**Evidence:** `plan.md` PHASE-04/VH-1 steps 1–3; SPEC-003/R-3.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-14 — AC-4's run precedes the audit's code-review repairs, and the plan does not say when it is re-run
+
+**Severity:** nit
+**Location:** `plan.md` PHASE-04/VH-1; §Owed, *Record the person's run*;
+§Branch and worktree, *The merge*
+
+**Expected:** `docs/AGENTS.md`: a slice does not close until a person has run
+the software and seen the new behaviour.
+
+**Observed:** VH-1 runs in PHASE-04, before audit's `review-code.md` rounds. A
+repair to `goad_shell::config` or `backend::process` after it leaves
+`audit.md` §Evidence describing a build that no longer exists. The plan names
+no condition for re-running VH-1.
+
+**Evidence:** `plan.md` §Owed and *The merge*.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+## Round 1 — raiser's notes
+
+Checked and found sound, so a second round can narrow.
+
+- **Callers and sites.** `Config::parse`'s callers outside `config.rs` are
+  exactly T2-6's four; `Config::load`'s are the three binaries. No struct
+  literal of `config::Command` exists outside `Command::new`, so the new field
+  breaks nothing at construction; the `Config` literals in `event_loop_drain`
+  and `event_loop_answer` use `Command::new` and get `None`. Every
+  `BackendError::Spawn` site is in PHASE-02's Surfaces (`process.rs`,
+  `error.rs` and its tests, `transport.rs`, `failure_matrix.rs`, `table.rs`,
+  `coverage.rs`); no `src/` outside `goad-shell` matches it. The only text
+  assertion on the spawn message is `table.rs` row `T1`'s prefix. Both
+  config-driven `ProcessBackend::new` calls take
+  `config.backend.command.clone()`, so neither `main.rs` changes.
+- **Shape guards.** `transport_shape.rs::the_only_spawn_is_the_child` counts
+  lowercase `spawn` on stripped lines and requires `let mut command =
+  Command::new(`; `nothing_returns_between_the_spawn_and_the_cleanup_budget`
+  starts at `.spawn()`. The designed `exchange` and a struct-shaped `Spawn`
+  arm satisfy both; the plan's note on lowercase identifiers is the right one.
+- **Red today.** Reasoned from the code: the resolution unit case, the
+  executable table and the directory-link case red on the stub the Notes
+  describe; the listener case binds in `crates/goad` today; `goad-emit`'s unit
+  case asserts `./from-config.sock` today and its binary case gets exit 2;
+  `examples.rs` started in the hand-out root finds none of the three
+  backends; the README case reds once `rooted_at_the_workspace` is gone;
+  PHASE-02's VT-1..VT-4 and VT-6 red against PHASE-01's spawn (VT-5: F-4).
+- **Mutations.** M1–M12 each compile under the plan's respelling rule
+  (`unused = deny`, `dead_code = warn` in `Cargo.toml`, verified) and each
+  reds the cases it names. M8 keeps the script case green and reds the native
+  one, as T2-S2 predicts. M11's beside-decoy and M12's non-caller directory
+  red their pins. M5 touches only the `UnixListener::bind` line, so lock-open
+  failures stay `Unbindable`.
+- **The `PATH` pin.** The built `goad-check` runs from `CARGO_BIN_EXE_…`, so
+  `PATH` on its child reaches only the backend lookup; `#!/bin/sh` decoys
+  using builtins need nothing on that `PATH`. The goad-check `binary` target
+  `#[path]`-includes `scripting.rs`, so the plan's `claim` route is available.
+- **Test-support constraints.** `std::env::set_var` and `std::env::var` are
+  disallowed (`clippy.toml`); `event_loop_schedule` includes `scripting.rs`,
+  so a shared helper there would be dead code; `goad-emit`'s targets do not
+  include it. As the Notes say.
+- **Coverage.** Every AC, every §9 row and every name in both §7 rows lands in
+  a phase with a VT/VA/VH that fails without it, except F-6's arm.
+- **Mechanics.** `git worktree add … -b slice-015` from the main checkout,
+  `git merge main` inside the worktree, `git merge --no-ff` from main, then
+  `git worktree remove` and `git branch -d`: no `stash`, no `checkout`. The
+  main checkout's modified `flake.lock` is untouched by a merge that does not
+  change it. Every `docs/memory/` note the plan cites exists.
+- **The plan's own calls.** Not citing draft ids in `kit/` follows
+  `docs/AGENTS.md` (nothing outside the slice may cite a draft). A-1 as
+  `ConfigError::Read` over `InvalidInput` is total, adds no variant and keeps
+  exit 2, consistent with D4. Per-file temp helpers are forced by the
+  `dead_code` constraint above. `chpwd.zsh`: its advice (an absolute
+  `--socket`) stays true, because `goad-emit`'s `--socket` is used as given
+  and a `chpwd` hook runs from every directory; classing it under VA-2 is
+  right. The `justfile` call: F-12.
+- **Not re-argued.** D1–D13, D4's tolerated case and D11's residue were taken
+  as settled.
 
 ## Synthesis
 
