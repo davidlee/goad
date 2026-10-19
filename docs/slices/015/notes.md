@@ -870,6 +870,175 @@ downloads-triage and focus-check.
   (`git status` lists only Surfaces); the cases' roots are under
   `temp_dir()`.
 
+**Orchestrator re-measure at `d14d75b`** (2026-10-19): `just check` exit 0;
+M11 re-run — `executable` anchoring every relative program — compiled,
+redded `run::a_program_with_no_slash_is_found_on_path_not_beside_the_config`
+(goad-check `binary` target), restore clean. Kit prose read; one wording nit
+for audit in `running.md` (*"the file and your backend can move together"* —
+"the file" is the config file, which the sentence leaves implicit).
+
+### PHASE-04 — the exercisers, the repository, and the person's run
+
+Written by the orchestrator, 2026-10-19, at `d14d75b`; executed by a separate
+agent up to VH-1, which is the person's. Quotes the plan where it restates it;
+says so where it narrows.
+
+**Objective** (`plan.md` PHASE-04, quoted): *"the demo runs from any directory
+with its socket in `exercisers/`, nothing in the repository states the old
+rule, and a person has seen it."*
+
+**Split of this phase** (the plan's own: *"VH-1 is a person, not an
+agent"*): the executor does EX-1..EX-7 and VA-1..VA-4, commits with §Status
+PHASE-04 `awaiting VH-1`, and stops. The orchestrator hands the person VH-1's
+commands, records what they saw under *VH-1* below, and sets `done`.
+
+**Reading list**
+- `plan.md` §Overview *Owed to audit and close* (VA-4 checks it), §PHASE-04
+  entire.
+- `design.md` §5.3 (repo state: the socket moves), §7 D9, §10 (*Not canon,
+  repaired in the slice*: the exerciser and repository rows).
+- `research.md` T2-10, T2-S7, X-4.
+- `review-design.md` F-9 (`.gitignore`'s kit paragraph), F-17 (the Owed box).
+- Files: `exercisers/demo.toml`, `exercisers/shell/backend.sh` (header),
+  `justfile` (`emit`, the `package` comment), `.gitignore`,
+  `docs/memory/path-flake-ref-breaks-on-demo-socket.md`,
+  `crates/goad-shell/tests/integration/round_trip.rs` (`shell_example`'s doc).
+- Every earlier phase sheet's *Renames / additions* (for VA-2).
+
+**Surfaces — a closed list.** Anything outside it is a STOP.
+- `exercisers/demo.toml` — `command`, `[ingress] path`, and the comments
+  naming the socket or the old rule (D9).
+- `exercisers/shell/backend.sh` — header only.
+- `justfile` — `emit`'s `--socket`, the comment above `emit` if it names the
+  socket's location, and the `package` comment's sentence on what a `path:`
+  copy meets in the checkout. *(Narrowing note: the plan names "`emit`'s
+  `--socket`" and the `package` comment; the comment block above `emit` is
+  part of that recipe and is included only where it states the socket path
+  or the old rule.)*
+- `.gitignore` — the demo entries (`/exercisers/goad-demo.sock`,
+  `/exercisers/goad-demo.sock.lock` replace the root pair) and the
+  kit-example paragraph's reason (F-9).
+- `docs/memory/path-flake-ref-breaks-on-demo-socket.md` — the socket's
+  location and the general form's wording; its conclusion stands (X-4).
+- `crates/goad-shell/tests/integration/round_trip.rs` — `shell_example`'s
+  doc only.
+- `docs/slices/015/notes.md` (this sheet, §Status, §Owed, §Open, §Harvest).
+
+**Entry** — checked by the orchestrator:
+- EN-1 ✔ PHASE-03 done (`d14d75b`), re-measured above.
+
+**Assumptions**
+- *Verified by the orchestrator at `d14d75b`:* `demo.toml` today has
+  `command = ["bash", "exercisers/shell/backend.sh"]` and `path =
+  "./goad-demo.sock"` — the path's **text** stays, its meaning moves to
+  `exercisers/` (D9); the comment *"Relative paths resolve against goad's
+  working directory, which `just` sets to the repository root"* and the
+  `socat` / `nc` lines (`./goad-demo.sock`) and *"The socket lives in the
+  checkout deliberately (D-17)"* state or depend on the old rule. `just demo`
+  is `run "exercisers/demo.toml"` and is not touched. `justfile` `emit` passes
+  `--socket ./goad-demo.sock`. The `package` comment says
+  *"`.claude/worktrees/`, six gitignored worktrees"* — a count; EX-2 asks for
+  no number. `.gitignore` lists `/goad-demo.sock`, `/goad-demo.sock.lock`,
+  and its kit paragraph says *"relative to where goad is run"*.
+- *Root sockets today* (orchestrator, `ls`): the main checkout
+  `/home/david/dev/goad` holds `goad-demo.sock` and `goad-demo.sock.lock`;
+  the worktree `.claude/worktrees/slice-015` holds neither. `git worktree
+  list` shows only these two checkouts. VA-3 re-checks at execution.
+- *First tested here:* VH-1 — that a person's launch from `/tmp`, directly and
+  through a link, opens a view, binds `exercisers/goad-demo.sock`, and that
+  `just emit` reaches it.
+
+**STOP conditions**
+- a file outside Surfaces needs to change (in particular `docs/brief.md`,
+  closed slices, slice 012's record — never edit those);
+- `just -n check` would print a different sequence;
+- VA-1 finds a claim about the demo's argv or socket in a file outside
+  Surfaces that is now false;
+- VA-2 finds a §9 or §7-row case with no test and no recorded rename.
+
+**Exit criteria** (quoted from `plan.md`; none narrowed)
+- EX-1 — *"`demo.toml`: `command = ["bash", "shell/backend.sh"]`, `path =
+  "./goad-demo.sock"`, every comment true from any directory (the `socat`
+  and `nc` lines name the socket by a path that works from the repository
+  root, or say where they are run from)."*
+- EX-2 — *"`justfile` `emit` passes `--socket exercisers/goad-demo.sock`; the
+  `package` comment names `exercisers/goad-demo.sock` and the kit examples'
+  `goad.sock` files, which break a `path:` copy the same way, and says
+  `.claude/worktrees/` holds gitignored worktrees, with no number. `just -n
+  check` prints the same sequence as before (the gate recipe is not
+  touched)."*
+- EX-3 — *"`.gitignore` as Surfaces say; its comments give the new rule's
+  reason."*
+- EX-4 — *"`backend.sh`'s header quotes the demo's new argv."*
+- EX-5 — *"the memory note says where the socket now lives and that a
+  relative socket path resolves against the config file's directory."*
+- EX-6 — *"`notes.md` §Owed's box names which checkouts hold a stale root
+  `goad-demo.sock` pair (VA-3); the person deletes them after the merge."*
+- EX-7 — *"`round_trip.rs::shell_example`'s doc is true of the new demo: what
+  it shares with `demo.toml` (`bash` and the script) and what it does not
+  (the working directory, an absolute script path)."*
+- And `just check` exits 0 on the phase's final commit.
+
+**Verification**
+- VA-1 — record both greps and class each hit:
+  `git grep -n 'demo.toml\|goad-demo.sock\|shell/backend.sh' -- ':!docs/slices'`
+  and `git grep -n -i 'working directory\|started in\|repository root' --
+  exercisers justfile .gitignore docs/memory/path-flake-ref-breaks-on-demo-socket.md`.
+  (`crates/goad-check/src/args.rs` `DEFAULT_TIMEOUT`'s doc cites
+  `demo.toml`'s timeout and stays true.)
+- VA-2 — every case named in `design.md` §9 and in `canon-delta.md`'s §7 rows
+  resolves to a test in the tree (a grep for each `fn` name, or `cargo test
+  -- --list` per target), or to a rename a phase sheet records; gather the
+  renames/additions list below for audit's re-pointing.
+- VA-3 — the checkouts holding a root `goad-demo.sock` or
+  `goad-demo.sock.lock`, listed in §Owed: the main checkout, and each path in
+  `git worktree list`.
+- VA-4 — `notes.md` §Open carries every item of `plan.md` §Overview *Owed to
+  audit and close* as a box (one box per bullet, citing it by its bold lead).
+  Add PHASE-01..03's audit-bound Findings as boxes too (the `startup.rs`
+  "third such helper" count; the `Config::parse` doc nit; the `running.md`
+  wording nit; the `SPEC-001/R-60` citations in code ahead of promotion; the
+  `OsStr` finding as a memory candidate).
+- VH-1 — the person's (below). Not the executor's.
+
+**Notes for the implementer**
+1. `just demo` and every other recipe that is not `emit` or `package`'s
+   comment stays as is. `just -n check` before and after: record both are
+   identical.
+2. `demo.toml` comments are read by a person running the demo: keep them as
+   long as they need to be and no longer; say where the `socat`/`nc` lines
+   are run from (the repository root, `exercisers/goad-demo.sock`) or make
+   them path-independent. Drop *"D-17"* only if it becomes false; if the
+   socket still lives in the checkout deliberately, it stays true.
+3. The memory note's conclusion (use the bare git form) stands; only the
+   location and the general wording change.
+4. Do not edit `docs/brief.md`, closed slices, or slice 012's record.
+5. Never delete the root sockets yourself: the Owed box is the person's.
+6. Cite by symbol, never line number; name, never count.
+
+**Tasks**
+- [ ] Print `git log -1 --oneline`; record it. §Status PHASE-04 `in progress`.
+- [ ] `just -n check` recorded (before).
+- [ ] EX-1 `demo.toml`; EX-4 `backend.sh` header.
+- [ ] EX-2 `justfile`; EX-3 `.gitignore`; EX-5 memory note; EX-7
+      `shell_example`'s doc.
+- [ ] VA-1, VA-2, VA-3 recorded; EX-6 §Owed updated; VA-4 §Open boxes.
+- [ ] `just -n check` recorded (after; identical); `just check` exits 0.
+- [ ] §Status PHASE-04 `awaiting VH-1`; §Harvest; commit; stop.
+- [ ] *(orchestrator)* VH-1 handed to the person; result recorded; `done`.
+
+**VA-1 — hits, classed**
+
+**VA-2 — §9 / §7 cases resolved; renames and additions for audit**
+
+**VA-3 — root sockets**
+
+**VH-1 — the person's run** (recorded by the orchestrator)
+
+**Decisions taken during execution**
+
+**Findings**
+
 ## Owed
 
 Manual steps no phase's code reaches; each a box, ticked with who did it and
