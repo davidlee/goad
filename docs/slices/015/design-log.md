@@ -118,3 +118,14 @@ other, citing the finding id.
 - **Recommended:** endorse; keep the clause, since a refusal says which side
   was wrong and the rule now has two causes for one failure.
 - **Decided:** "yes, and keep it".
+
+### 2026-10-19 — design review round 2 dispositions
+
+- **Asked:** F-5 (contested): move the `PATH` case to the built-binary tier,
+  `PATH` set on the `goad-check --config` child only. F-18: restore a native
+  program case (`./shell -c 'echo "$0"'`, a copy of `sh` beside the config)
+  asserting the joined path. F-19: narrow R-60's spawn-report clause to a
+  command loaded from a configuration file (touches endorsed wording; no
+  config-driven spawn changes). F-20: the merge coordinates with any 012 walk
+  in flight, PHASE-09 or PHASE-10.
+- **Decided:** "confirmed yes" — all four, the F-19 narrowing included.
