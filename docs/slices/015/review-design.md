@@ -98,23 +98,26 @@ hold throughout; these are the surfaces to attack:
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | major | doc-wrong | |
-| F-2 | major | fix-now | |
-| F-3 | major | doc-wrong | |
-| F-4 | minor | doc-wrong | |
-| F-5 | minor | fix-now | |
-| F-6 | minor | tolerated | |
-| F-7 | minor | fix-now | |
-| F-8 | minor | doc-wrong | |
-| F-9 | minor | doc-wrong | |
-| F-10 | minor | doc-wrong | |
-| F-11 | minor | fix-now | |
-| F-12 | nit | doc-wrong | |
-| F-13 | nit | doc-wrong | |
-| F-14 | nit | fix-now | |
-| F-15 | nit | doc-wrong | |
-| F-16 | nit | doc-wrong | |
-| F-17 | nit | fix-now | |
+| F-1 | major | doc-wrong | verified |
+| F-2 | major | fix-now | verified |
+| F-3 | major | doc-wrong | verified |
+| F-4 | minor | doc-wrong | verified |
+| F-5 | minor | fix-now | contested |
+| F-6 | minor | tolerated | verified |
+| F-7 | minor | fix-now | verified |
+| F-8 | minor | doc-wrong | verified |
+| F-9 | minor | doc-wrong | verified |
+| F-10 | minor | doc-wrong | verified |
+| F-11 | minor | fix-now | verified |
+| F-12 | nit | doc-wrong | verified |
+| F-13 | nit | doc-wrong | verified |
+| F-14 | nit | fix-now | verified |
+| F-15 | nit | doc-wrong | verified |
+| F-16 | nit | doc-wrong | verified |
+| F-17 | nit | fix-now | verified |
+| F-18 | minor | | |
+| F-19 | nit | | |
+| F-20 | nit | | |
 
 ### Round 1 — raiser's notes
 
@@ -206,7 +209,7 @@ program sees `arg0`); research T2-S2; `design.md` D5's last sentence.
 **Disposition:** doc-wrong
 **Response:** Correct, and the claim was canon's. `arg0` is dropped. R-60 now says a relative program with a `/` is executed as the path joined onto the configuration's directory and that the joined path is the name it receives, a script and a native program alike; §6.4's paragraph gives the reason (a script's interpreter is handed the exec path whatever argv[0] says). I-2 now says the arguments are as written and the name is the executed path. D5 rewritten with `arg0` among the rejected options; research's design-input delta corrected. Person confirmed (`design-log.md` 2026-10-19, *design review round 1 dispositions*).
 
-**Outcome:**
+**Outcome:** verified — round 2. R-60 now says the joined path is the name the program receives, a script and a native program alike, with F-1 cited in its *Why*; I-2 is restated; D5's `arg0` is gone from §5.2. Read in `canon-delta.md` Change 1, `design.md` §5.2 and §5.5. The new wording's native half is unheld: F-18.
 
 ### F-2 — Nothing verifies R-60's *by the host's own resolution*; every §9 case passes with the platform's resolution
 
@@ -234,7 +237,7 @@ forbid asserting it.
 **Disposition:** fix-now
 **Response:** `working_directory.rs::a_relative_program_with_a_slash_is_executed_as_the_anchored_path` (renamed from `…_resolves_beside_the_config`) asserts the script's `$0` is `<canonical anchor>/backend.sh`, which reds under `Command::new(relative)` + `current_dir` (R1-S1). Named in `design.md` §9 and in R-60's §7 row, which now says this is what tells the host's resolution from the platform's. `the_backend_receives_its_program_as_written` is removed with `arg0`.
 
-**Outcome:**
+**Outcome:** verified — round 2. `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` asserts the script's `$0` is the anchored path, which R1-S1 shows is `./b.sh` under the platform's route, so the case is red under the regression it guards. R-60's §7 row says so.
 
 ### F-3 — The directory-component half of the linked-config case cannot discriminate, and canon's §7 row claims it does
 
@@ -263,7 +266,7 @@ checkable with one `ln -s` and `pwd -P`.
 **Disposition:** doc-wrong
 **Response:** Correct. The spawn case keeps only the file-link half, which discriminates. The directory-link half moves to `working_directory.rs::a_config_reached_through_a_linked_directory_is_anchored_at_the_target`, asserting the loaded `Command`'s `working_directory` (and the anchored `ingress.path`) is the target's — the string anchor `PWD`, the socket path and its length see; red under `path.parent()` as given. R-60's §7 row says the directory-link half is held on the loaded value and why it cannot be held at the spawn.
 
-**Outcome:**
+**Outcome:** verified — round 2. The directory-link half is now `a_config_reached_through_a_linked_directory_is_anchored_at_the_target`, held on the loaded value (`working_directory`, anchored `ingress.path`), red under `path.parent()` as given; the §7 row says why it is not observable at the spawn. The file-link case keeps its decoy.
 
 ### F-4 — R-60's §7 row says the replaced behaviour fails *each* case; the `PATH` case is a pin
 
@@ -283,7 +286,7 @@ bare names*).
 **Disposition:** doc-wrong
 **Response:** R-60's §7 row no longer quantifies over every case: it lists the cases red under the old spawn, then names the `PATH` case as a pin and says what reds it. The directory-link case is described separately (F-3).
 
-**Outcome:**
+**Outcome:** verified — round 2. R-60's §7 row now separates *red under the spawn R-60 replaces* from *a pin*, and names the pin.
 
 ### F-5 — A relative or empty `PATH` entry finds a bare program beside the config; the `PATH` test depends on the inherited environment
 
@@ -308,7 +311,7 @@ anchor).
 **Disposition:** fix-now
 **Response:** The case is renamed `a_program_with_no_slash_is_found_on_path_not_beside_the_config` and sets `PATH` itself to one absolute directory holding a `goad-decoy` that answers *from PATH*, with another beside the config answering *beside*; the inherited `PATH` is never consulted. §5.5's edge and §6.4's paragraph now state that the lookup follows the change of directory, so a relative or empty `PATH` entry means the config's directory; *as a shell would find it* is gone. The kit's `running.md` says so (§10).
 
-**Outcome:**
+**Outcome:** contested — round 2. **Contested.** The rename and the prose hold (§5.5 edge, §6.4, `running.md` in §10). The case cannot be built as placed: it sits in `goad-shell`'s `integration` target and "sets `PATH` itself", but neither `ProcessBackend` nor `config::Command` offers an environment, so the only way to give the child a `PATH` is to change the test process's own. `clippy.toml` disallows `std::env::set_var`, edition 2024 makes it `unsafe`, and it is process-global: sibling cases in the same binary spawn `bash` and `python3` by bare name (this file's own `a_relative_argument_…` and `the_backend_s_pwd_…`), and the case's `PATH` holds only `goad-decoy`, so they would fail when run in parallel. A mechanism that works: a test target of its own holding the one case (the `event_loop_*` precedent), with the `set_var` under a reasoned `#[expect]`; or the built-binary tier, setting `PATH` on the `goad-check --config` child (`Command::env` on a process, no global mutation). Either moves the case, and R-60's §7 row cites it by its `working_directory.rs` path, so the row moves with it.
 
 ### F-6 — `canonicalize` refuses a configuration that is not a file in a directory; D4's *same subjects* is false
 
@@ -331,7 +334,7 @@ directory.
 **Disposition:** tolerated
 **Response:** D4's *same subjects* is now qualified to a file in a directory, and the exception is stated and tolerated: `/dev/stdin`, `<(…)`, `/proc/self/fd/N` read today and are refused as `ConfigError::Read` `NotFound` naming a path that exists. Rationale: no user in the tree, kit or canon, and a fallback would be a second rule for where a backend runs. Added to §5.2's errors table and research T2-S6 and deltas.
 
-**Outcome:**
+**Outcome:** verified — round 2. Tolerated with a reason in D4 and §5.2's table; the reason (a fallback would be a second rule for where a backend runs) is a real one.
 
 ### F-7 — The backend inherits a `PWD` naming goad's start directory
 
@@ -351,7 +354,7 @@ host's environment.
 **Disposition:** fix-now
 **Response:** Design, not canon (D12): when a working directory is set, the spawn also sets `PWD` to it (§5.2). I-4 states it; `working_directory.rs::the_backend_s_pwd_names_its_working_directory` asserts it with a `python3` backend, which exposes `PWD` as inherited (R1-S7) where a shell would repair it and hide the defect.
 
-**Outcome:**
+**Outcome:** verified — round 2. D12, I-4, §5.2's `.env("PWD", directory)` and `the_backend_s_pwd_names_its_working_directory` (python3, red today because `PWD` is inherited). Design, not canon, which is right: R-60 is about the working directory.
 
 ### F-8 — A kit example used in place now writes its socket into the kit, and from a read-only kit cannot bind at all
 
@@ -375,7 +378,7 @@ paragraph; the two example `config.toml`s.
 **Disposition:** doc-wrong
 **Response:** §5.5's read-only edge now covers both consequences: a read-only working directory, and a relative `ingress.path` created beside the config — from an installed kit `ingress::hold` cannot open the lock and goad exits 2 (R-4); from the checkout each run writes the socket and lock into `kit/…/examples/*/`, which `.gitignore` covers. The kit READMEs keep *copy this directory out*, now with that reason; listed in §10's collateral.
 
-**Outcome:**
+**Outcome:** verified — round 2. §5.5's read-only edge now names the socket consequence; §10 keeps *copy this directory out* with its reason.
 
 ### F-9 — Prose that states the old rule, outside §10's list
 
@@ -404,7 +407,7 @@ goad.sock` over `kit`, `crates`, `.gitignore`.
 **Disposition:** doc-wrong
 **Response:** All added to §10's collateral and `slice-015.md` §Scope: `events.md`, `.gitignore`'s kit-example paragraph, `downloads-triage/watch.sh`'s header, and the docs of `tests/kit/main.rs`, `examples.rs::run_checker` and `tree.rs::files`. Research gains them as a delta row.
 
-**Outcome:**
+**Outcome:** verified — round 2. Every artefact F-9 listed is in §10 and `slice-015.md` §Scope.
 
 ### F-10 — 012's walks are still pending; R1 covers file contention, not which rule those walks run under
 
@@ -424,7 +427,7 @@ its kit does not describe.
 **Disposition:** doc-wrong
 **Response:** Decided differently from a wait (`design-log.md` 2026-10-19, round 1 dispositions): 015's code and its kit and exerciser prose land together in one merge from 015's own branch and worktree, so `main` never holds one rule with the other's text; that merge goes to `main` when 015 ships, without waiting on 012's PHASE-10 if 012 has not moved, and only a PHASE-10 in flight is coordinated with. §8 R1 and `slice-015.md` *Depends on* rewritten. `canon-delta.md`'s promotion paragraph is now a preference: if 015 closes first it promotes its own delta and SPEC-001 carries R-60 with no R-59 until 012 promotes.
 
-**Outcome:**
+**Outcome:** verified — round 2. `slice-015.md` *Depends on*, §8 R1, `canon-delta.md`'s promotion note and the design-log entry agree: one merge, code with prose. A walk in flight across that merge is not covered: F-20.
 
 ### F-11 — *Not spawnable* gains a second subject and still names no path
 
@@ -447,7 +450,7 @@ R1-S6.
 **Disposition:** fix-now
 **Response:** D13: `BackendError::Spawn` becomes `{ executable, working_directory, source }`, its `Display` naming both paths; `requirement()`, `fault()` and the asserted prefix are unchanged. R-44's wording is unchanged (it names the error's kind, not its text) and no SPEC-004 line quotes the message. Canon does change: R-60 gains *its report MUST name the path the host tried to execute and the working directory it tried to execute it in*, held by `working_directory.rs::a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for`. The tests that match or build `Spawn` are listed in §9.
 
-**Outcome:**
+**Outcome:** verified — round 2. D13, §5.2's `Spawn { executable, working_directory, source }` and its `Display`; R-60's new clause; `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for`. §9's list of changed tests matches every site that matches or builds `Spawn` (grep `BackendError::Spawn` over `crates`: `error.rs` and its tests, `process.rs`, `transport.rs`, `failure_matrix.rs`, `renderer/table.rs`, `kit/coverage.rs`). The clause's reach for a command with no directory: F-19.
 
 ### F-12 — I-3 holds only when goad runs on the default configuration
 
@@ -464,7 +467,7 @@ so.
 **Disposition:** doc-wrong
 **Response:** I-3 now says *reading the same file*, and that `goad-emit` reads only the default file, so a goad started on another (the demo) is reached with `--socket`.
 
-**Outcome:**
+**Outcome:** verified — round 2. I-3 is conditioned on the same file, naming `socket_path`.
 
 ### F-13 — R-17's §7 row: tier label and *every startup failure*
 
@@ -482,7 +485,7 @@ failure — the unreadable-config one names the config path.
 **Disposition:** doc-wrong
 **Response:** R-17's §7 row is labelled *renderer, integration and unit*. R-17 now says the resolved path is the one *each of their* (R-1 to R-5's) startup failures names.
 
-**Outcome:**
+**Outcome:** verified — round 2. R-17's row reads *renderer, integration and unit*; R-17 says *each of their startup failures*.
 
 ### F-14 — The length pin asserts std's wording and needs a short temp directory
 
@@ -502,7 +505,7 @@ T2-S5.
 **Disposition:** fix-now
 **Response:** The pin asserts `BindFault::Unbindable` over `ErrorKind::InvalidInput` and that the message names the path; std's wording is not asserted (§9 and R-17's §7 row). Precondition stated: when `std::env::temp_dir()` leaves no room for the 107-byte control, the case fails naming the precondition and the length found — it never skips. §8 R3's signal updated.
 
-**Outcome:**
+**Outcome:** verified — round 2. The pin asserts `InvalidInput` under `Unbindable` and the path, not std's wording, and states its `temp_dir` precondition (fails, never skips).
 
 ### F-15 — `Command::in_directory` duplicates a public field
 
@@ -517,7 +520,7 @@ its one caller is `Config::parse`.
 **Disposition:** doc-wrong
 **Response:** `Command::in_directory` is removed; `Config::parse` sets the public `working_directory` by struct update over `from_argv`'s value. D1 says the field is the one way to set it.
 
-**Outcome:**
+**Outcome:** verified — round 2. No builder; §5.2 says the public field is the one way.
 
 ### F-16 — The *existing tests changed* list omits `config.rs`'s own tests
 
@@ -535,7 +538,7 @@ first two change meaning, not only signature.
 **Disposition:** doc-wrong
 **Response:** §9's *existing tests changed* list now names `config.rs::tests` — `rejection` and every case calling `parse` — and the two that change meaning: `the_design_s_own_example_loads` (asserts `working_directory`) and `an_ingress_section_loads_with_its_path` (asserts the anchored path, not `./goad.sock`).
 
-**Outcome:**
+**Outcome:** verified — round 2. §9 lists `config.rs::tests` and the two cases that change meaning.
 
 ### F-17 — The stale root socket pair is *deleted by hand*, with no box to catch it
 
@@ -552,6 +555,121 @@ shows as untracked (T2-S7). The design leaves it to prose.
 
 **Disposition:** fix-now
 **Response:** A box in `notes.md` §Owed: delete the root `goad-demo.sock` and `.lock` in every checkout — the person's main checkout and each `.claude/worktrees/` worktree — once `.gitignore` drops their entries. §5.3 points to it.
+
+**Outcome:** verified — round 2. `notes.md` §Owed carries the box, naming every checkout including worktrees.
+
+### Round 2 — raiser's notes
+
+Raiser: the round-1 raiser, at `2ebb41c`. Read the artefacts, not the
+Responses: `design.md` §5.2, §5.3, §5.5, §7 (D4, D12, D13), §8 R1, §9, §10;
+`canon-delta.md` SPEC-001 Changes 1–3 and SPEC-003 Changes 1 and 3;
+`slice-015.md` *Depends on* and §Scope; `notes.md` §Owed; `design-log.md`'s two
+round-1 entries. No new spike: R1-S1 and R1-S2 already answer every
+behavioural question the repairs raise.
+
+**Checked and complete:**
+
+- R-60's reworded text, §6.4's paragraph and R-60's §7 row agree with §5.2's
+  spawn code and with I-2: no `arg0`, the joined path as the name, `PWD` set,
+  the report naming executable and directory. No line number and no count in
+  any of them; every test is cited by path and symbol.
+- The script-`$0` case is the discriminating witness for *the host's own
+  resolution* (R1-S1: `./b.sh` under the platform route, absolute under the
+  join). Red today (`NotFound`) and red under the regression F-2 named.
+- The directory-link case on the loaded value is red under `path.parent()` as
+  given, and the row explains why the spawn cannot see it.
+- `BackendError::Spawn`'s new shape: §9's list is every site that matches or
+  builds it (`error.rs` — `requirement`, `fault`, `Display`, `source`, and its
+  tests; `process.rs`; `transport.rs`; `failure_matrix.rs`;
+  `renderer/table.rs`, whose prefix assertion survives; `kit/coverage.rs`).
+  `goad-check` renders the failure through `Display`, so its report carries
+  the paths too. `goad-check/tests/binary/run.rs`'s probe case asserts the
+  requirement and side, not the text, and is unaffected.
+- `transport_shape.rs`: the new spawn code still holds `let mut command =
+  Command::new(`; the error's construction contains `Spawn`, not `spawn` (the
+  guard is case-sensitive), so `the_only_spawn_is_the_child` stays at one hit.
+- `PWD` (D12): set only beside `current_dir`, to the same canonical path, so
+  `pwd -P` and `PWD` agree. Setting one variable does not change how std
+  finds a bare program (that changes only when `PATH` itself is set).
+- The python3 `PWD` case is red today: the test process's `PWD` is the
+  invocation directory, never the temp config's.
+- F-10's one-merge decision is consistent across four artefacts, and the
+  promotion note no longer makes 012's audit a gate.
+- The length pin's precondition: it fails rather than skips when `temp_dir()`
+  is too long. In a jail whose `TMPDIR` exceeds 105 bytes the gate goes red,
+  by design and with a message saying why; the existing `ingress.rs` cases
+  that bind under `temp_dir()` already carry the same exposure. Recorded,
+  not raised.
+
+**Not checked:** whether the larger `Spawn` variant moves `BackendError` past
+clippy's `result_large_err` threshold. It is two `PathBuf`s and an
+`io::Error`, likely under it; the first `just check` of the phase answers it.
+
+**For round 3:** F-5's mechanism (where the case lives and how `PATH` reaches
+the child) and F-18–F-20's repairs. Nothing else in the repairs is open.
+
+### F-18 — Nothing holds R-60's *a native program alike*
+
+**Severity:** minor
+**Location:** `canon-delta.md` SPEC-001 Change 1 (*the joined path is the name
+the program receives, a script and a native program alike*) and Change 3;
+`design.md` §5.5 I-2, §9
+
+**Expected:** each clause of R-60 held by a case that a regression would
+turn red.
+**Observed:** round 1's `the_backend_receives_its_program_as_written`, the one
+case that observed a native program's argv[0], was dropped with `arg0`. Now
+only a script's `$0` is asserted, and a script's `$0` is the executed path
+whatever argv[0] is (R1-S1). So the regression *add `arg0(&program)` back*
+leaves every §9 case green while a native program receives `./shell` rather
+than the joined path the canon promises.
+**Evidence:** R1-S1 (script `$0` absolute with `arg0("./b.sh")`), R1-S2
+(native `$0` follows `arg0`); `design.md` §9 has no native-program row. The
+same construction as before — `["./shell", "-c", 'echo "$0"']`, `shell` a
+link to `sh` — now asserting the anchored path, holds it.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-19 — R-60's report clause is not scoped to commands with a working directory
+
+**Severity:** nit
+**Location:** `canon-delta.md` SPEC-001 Change 1 (*its report MUST name the
+path the host tried to execute and the working directory it tried to execute
+it in*); `design.md` §5.2 `Display` (*the parenthesis only when a working
+directory is set*)
+
+**Expected:** a MUST whose letter the design meets in every case it covers.
+**Observed:** the sentence follows *A program that cannot be started is R-44's
+…* and reads as applying to every spawn failure. For a command with no file —
+`goad-check`'s argv form — the design's `Display` names no directory, which
+breaks the literal clause. Either scope the clause (*a command loaded from a
+configuration file*, as R-60's first sentence is) or name the caller's
+directory too.
+**Evidence:** the two texts cited.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-20 — R1 coordinates with a PHASE-10 in flight, not a PHASE-09
+
+**Severity:** nit
+**Location:** `design.md` §8 R1; `slice-015.md` *Depends on*
+
+**Expected:** the merge rule to cover every 012 phase whose walks run the
+binaries and read the kit.
+**Observed:** R1's risk names PHASE-09 and PHASE-10; its mitigation coordinates
+only with *a PHASE-10 actually in flight*. A PHASE-09 walk in progress when 015
+merges sees the rule change mid-walk, the case F-10 was about. One word fixes
+it, or a sentence saying why PHASE-09 cannot be in flight.
+**Evidence:** `docs/slices/012/notes.md` §Status (PHASE-09 pending).
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
