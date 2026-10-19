@@ -6,8 +6,9 @@ about where a backend command runs.
 **Depends on:** nothing, to ship. Code and its kit and exerciser prose land
 together in one merge from this slice's own branch and worktree, and that
 merge goes to `main` when the slice ships, without waiting on slice 012's
-PHASE-10 if 012 has not moved; only a PHASE-10 actually in flight is
-coordinated with (one writer per file). Promotion after 012's is a
+PHASE-10 if 012 has not moved; only a 012 walk actually in flight — PHASE-09
+or PHASE-10 — is coordinated with (`review-design.md` F-20), and PHASE-10
+also as a writer of the same files. Promotion after 012's is a
 preference: if this slice closes first it promotes its own delta, and
 SPEC-001 carries R-60 with no R-59 until 012's audit (`design-log.md`
 2026-10-19, *design review round 1 dispositions*, F-10).

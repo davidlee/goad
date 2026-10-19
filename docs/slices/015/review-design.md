@@ -115,9 +115,9 @@ hold throughout; these are the surfaces to attack:
 | F-15 | nit | doc-wrong | verified |
 | F-16 | nit | doc-wrong | verified |
 | F-17 | nit | fix-now | verified |
-| F-18 | minor | | |
-| F-19 | nit | | |
-| F-20 | nit | | |
+| F-18 | minor | fix-now | |
+| F-19 | nit | doc-wrong | |
+| F-20 | nit | doc-wrong | |
 
 ### Round 1 — raiser's notes
 
@@ -312,6 +312,21 @@ anchor).
 **Response:** The case is renamed `a_program_with_no_slash_is_found_on_path_not_beside_the_config` and sets `PATH` itself to one absolute directory holding a `goad-decoy` that answers *from PATH*, with another beside the config answering *beside*; the inherited `PATH` is never consulted. §5.5's edge and §6.4's paragraph now state that the lookup follows the change of directory, so a relative or empty `PATH` entry means the config's directory; *as a shell would find it* is gone. The kit's `running.md` says so (§10).
 
 **Outcome:** contested — round 2. **Contested.** The rename and the prose hold (§5.5 edge, §6.4, `running.md` in §10). The case cannot be built as placed: it sits in `goad-shell`'s `integration` target and "sets `PATH` itself", but neither `ProcessBackend` nor `config::Command` offers an environment, so the only way to give the child a `PATH` is to change the test process's own. `clippy.toml` disallows `std::env::set_var`, edition 2024 makes it `unsafe`, and it is process-global: sibling cases in the same binary spawn `bash` and `python3` by bare name (this file's own `a_relative_argument_…` and `the_backend_s_pwd_…`), and the case's `PATH` holds only `goad-decoy`, so they would fail when run in parallel. A mechanism that works: a test target of its own holding the one case (the `event_loop_*` precedent), with the `set_var` under a reasoned `#[expect]`; or the built-binary tier, setting `PATH` on the `goad-check --config` child (`Command::env` on a process, no global mutation). Either moves the case, and R-60's §7 row cites it by its `working_directory.rs` path, so the row moves with it.
+
+**Response (round 2):** The case moves to the built-binary tier
+(`design-log.md` 2026-10-19, *design review round 2 dispositions*):
+`crates/goad-check/tests/binary/run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`
+runs `goad-check --config` with `PATH` set by `Command::env` on that child
+only — no `set_var`, no new target, no `#[expect]`. Layout under the case's
+temp root: `config/config.toml` naming `["goad-decoy", <log>]`;
+`config/goad-decoy` and `path/goad-decoy`, each `#!/bin/sh` (present on
+NixOS, as the existing `deletes-itself-on-its-third-run.sh` fixture relies
+on) and using shell builtins only, so neither depends on the restricted
+`PATH`; each appends its own label to the log and answers conformingly. The
+checker runs with `PATH` = `<root>/path`, from `<root>`. It asserts at least
+one log line and every line `from-path`, so an implementation that looks
+beside the config for a bare name reds it with `beside`. `design.md` §9 and
+R-60's §7 row cite it at its new path; the `working_directory.rs` row is gone.
 
 ### F-6 — `canonicalize` refuses a configuration that is not a file in a directory; D4's *same subjects* is false
 
@@ -628,8 +643,8 @@ than the joined path the canon promises.
 same construction as before — `["./shell", "-c", 'echo "$0"']`, `shell` a
 link to `sh` — now asserting the anchored path, holds it.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now
+**Response:** `working_directory.rs::a_native_program_receives_its_anchored_path_as_its_name`: the devshell's `sh`, resolved at test time (`sh -c 'command -v sh'`, then canonicalized to the real binary), is **copied** beside the config as `shell`; `["./shell", "-c", …]` logs `$0`, which is argv[0] for `sh -c` with no operand, and the case asserts `<canonical anchor>/shell`. Red today (`NotFound`) and red if `arg0(&program)` is put back (`./shell`, R1-S2). Cited in `design.md` §9 and R-60's §7 row.
 
 **Outcome:**
 
@@ -650,8 +665,8 @@ configuration file*, as R-60's first sentence is) or name the caller's
 directory too.
 **Evidence:** the two texts cited.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** R-60's clause is narrowed: *for a command loaded from a configuration file, its report MUST name the path the host tried to execute and the working directory …*. §6.4's sentence likewise says *a configured command*. `design.md` §5.2 states that such a command always has a working directory (I-1), and that `goad-check`'s argv form reports the executable only, its directory being the caller's own. Endorsed by the person (`design-log.md` 2026-10-19, round 2 dispositions).
 
 **Outcome:**
 
@@ -668,8 +683,8 @@ merges sees the rule change mid-walk, the case F-10 was about. One word fixes
 it, or a sentence saying why PHASE-09 cannot be in flight.
 **Evidence:** `docs/slices/012/notes.md` §Status (PHASE-09 pending).
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong
+**Response:** The merge coordinates with any 012 walk in flight, PHASE-09 or PHASE-10, and with PHASE-10 also as a writer of the same files: `design.md` §8 R1 and `slice-015.md` *Depends on* corrected. `design-log.md`'s round 2 entry already states it; F-10's Response stands as written in round 1 and this Response supersedes its *only a PHASE-10* phrase; `canon-delta.md`'s promotion paragraph names no phase.
 
 **Outcome:**
 
