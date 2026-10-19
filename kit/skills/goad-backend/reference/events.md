@@ -63,10 +63,13 @@ goad-emit --socket ./goad.sock --source cron --kind woke
 
 `--data` defaults to `null`. Without `--socket` it reads `[ingress] path`
 from goad's default config file (`$XDG_CONFIG_HOME/goad/config.toml`, or
-`~/.config/goad/config.toml`); for a goad started on another config file,
-pass `--socket`. It sets no deadline of its own: wrap it in `timeout` if you
-need one. Any other program that writes one line to the socket and reads one
-line back works as well.
+`~/.config/goad/config.toml`) and resolves a relative one against that file's
+directory, as goad does, so the two agree wherever each is started. For a
+goad started on another config file, pass `--socket`: its path is used as
+given, so a relative one is relative to the directory `goad-emit` runs in.
+It sets no deadline of its own: wrap it in `timeout` if you need one. Any
+other program that writes one line to the socket and reads one line back
+works as well.
 
 ### SPEC-004/R-8 — `goad-emit` exits 0 when the host accepted the envelope
 

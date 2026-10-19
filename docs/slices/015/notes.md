@@ -10,7 +10,7 @@ after the slice closes is lifted into the Harvest section.
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-19 |
 | PHASE-02 | done | 2026-10-19 |
-| PHASE-03 | pending | 2026-10-19 |
+| PHASE-03 | done | 2026-10-19 |
 | PHASE-04 | pending | 2026-10-19 |
 
 ## Phase sheets
@@ -760,41 +760,115 @@ absolute* advice."*
    (*"each example"*, not *"the three examples"*).
 
 **Tasks**
-- [ ] Print `git log -1 --oneline`; record it. §Status PHASE-03 `in progress`.
-- [ ] VT-1, VT-2 written; green on arrival (pins); recorded.
-- [ ] M11, M12 recorded.
-- [ ] `running.md` (EX-2), `checking.md` (EX-3), `events.md` (EX-4).
-- [ ] Example `config.toml` comments (EX-6) and README fences + prose (EX-5),
+- [x] Print `git log -1 --oneline`; record it. §Status PHASE-03 `in progress`.
+      `7fd8cb9 015: PHASE-02 re-measured; PHASE-03 sheet`.
+- [x] VT-1, VT-2 written; green on arrival (pins); recorded.
+- [x] M11, M12 recorded.
+- [x] `running.md` (EX-2), `checking.md` (EX-3), `events.md` (EX-4).
+- [x] Example `config.toml` comments (EX-6) and README fences + prose (EX-5),
       `watch.sh` header; VA-2 on `chpwd.zsh`.
-- [ ] VT-3 (kit tier green), VA-1 grep classified, VA-3 diffs recorded.
-- [ ] Refactor/re-read pass over every edited kit paragraph.
-- [ ] `just check` exits 0; §Status PHASE-03 `done`; §Harvest; commit.
+- [x] VT-3 (kit tier green), VA-1 grep classified, VA-3 diffs recorded.
+- [x] Refactor/re-read pass over every edited kit paragraph.
+- [x] `just check` exits 0; §Status PHASE-03 `done`; §Harvest; commit.
 
 **Pin evidence** (green on arrival)
 
 | case | command | result |
 |---|---|---|
-| VT-1 `a_program_with_no_slash_is_found_on_path_not_beside_the_config` | | |
-| VT-2 `the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | | |
+| VT-1 `a_program_with_no_slash_is_found_on_path_not_beside_the_config` | `cargo test -p goad-check --test binary -- run::a_program_with_no_slash run::the_argv_form` | green on first run; the log read `from-path` ×4 (each host kind and the probe) |
+| VT-2 `the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | same run | green on first run; exit 0, log `ran` ×4 |
 
 **Mutation evidence**
 
 | id | edit (behaviour removed) | must red | command | compiled? | redded (name · assertion) | restore green? |
 |---|---|---|---|---|---|---|
-| M11 | `executable` anchors every relative program, `/` or not | `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config` (`beside` lines); also `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | | | | |
-| M12 | the argv form is given a working directory other than the caller's | `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | | | | |
+| M11 | `executable` anchors every relative program, `/` or not (guard's `&& self.program.contains('/')` dropped) | `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config` (`beside` lines); also `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash` | `cargo test -p goad-check --test binary --no-fail-fast -- run::`; `cargo test -p goad-shell --lib --no-fail-fast -- config::` | yes | VT-1 · `labels.iter().all(..)`, log `["beside", "beside", "beside", "beside"]`; the unit case · its table assertion. Nothing else in either filter | yes; `git status` clean of `config.rs` |
+| M12 | the argv form is given a working directory other than the caller's (`args.rs`'s `from_argv` result given `Some(temp_dir())`) | `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory` | `cargo test -p goad-check --no-fail-fast` | yes | VT-2 · `code_of == 0`; also `args::tests::{every_token_after_the_separator_is_the_commands, the_command_after_the_separator_is_the_argv_form_with_a_five_second_timeout, timeout_sets_the_argv_forms_timeout}`, which compare the whole `Command` (`working_directory: None`) | yes; `git status` clean of `args.rs` |
 
 **VA-1 — grep hits, classed**
 
+Before the edits the grep hit each example `config.toml`'s comment and its
+README fence copy (*relative to this directory*, *from here*), each README's
+*Run it from anywhere else* prose (*started in*, *make both absolute*,
+`/absolute/path/to/…`), `checking.md`'s relative-path paragraph and
+`running.md`'s *Name your command* paragraph and `ingress.path` row: all
+repaired. After them, on the committed text:
+
+| hit | class |
+|---|---|
+| each README's *From this directory, with `goad-check` … on `PATH`:* | true: the `goad-check --config config.toml [--event events/…]` beneath it names paths relative to the caller, which the new rule does not touch |
+| each README's *run `goad config.toml` from this directory* | true: `config.toml` is goad's argument, relative to the caller; `goad-emit --socket ./goad.sock` beside it is run from the same directory |
+| `chpwd.zsh` header, *add `--socket` with the absolute path* | true: VA-2 |
+| `focus-check/README.md`, *as an absolute instant* | unrelated: `next_check`'s form |
+| `running.md`, *an absolute path is used as written* | true: the new rule's third case |
+| `running.md`, *Relative paths used to mean the directory goad was started in* | true: EX-2's one sentence that the rule changed |
+| `running.md`, *not absolute* (`$XDG_CONFIG_HOME`) | unrelated: the default config file's lookup |
+| `running.md`'s `ingress.path` row, *use an absolute path somewhere short* | true: the socket-length remedy (D8), not a workaround for where goad started |
+
+No hit advises making a path absolute, or running from a directory, to work
+around where goad was started.
+
 **VA-2 — `chpwd.zsh`**
+
+True, left as is. The hook runs `goad-emit` after every `cd`, from whatever
+directory the shell has just entered, and `--socket` is used as given, so
+only an absolute path names one socket from every directory. The reason is
+`goad-emit`'s working directory, not goad's.
 
 **VA-3 — fence vs file**
 
+`awk '/^```toml goad:config/{f=1;next} /^```/{if(f){exit}} f' README.md |
+diff - config.toml` in each example directory: no output for breadcrumbs,
+downloads-triage and focus-check.
+
 **Renames / additions**
+- `process.rs::check_in(directory, environment, arguments)` — the spawn
+  helper the sheet allowed: working directory and environment on the
+  checker's child alone.
+- `run.rs::root` (kind `checker root`, `goad-check-<case>-<pid>.d`),
+  `run.rs::labelled_backend`, `run.rs::labels`. `claim`'s doc names `root`
+  and its path shape.
 
 **Decisions taken during execution**
+- *VT-2 asserts exit 0, not just "judged".* A judged run is 0 or 1, and
+  M12's spawn failure is judged too (exit 1, R-44), so "judged" alone would
+  stay green under M12. The backend is conforming, so the pin is
+  "accepted", plus a non-empty log.
+- *One labelled backend for both cases* (`labelled_backend(path, label)`):
+  VT-1's two decoys and VT-2's backend differ only in their label. It reads
+  stdin with `while read`, a builtin, not `cat`, which VT-1's `PATH` lacks.
+- *VT-1's config quotes the log path through `serde_json::Value`*: a JSON
+  string is a TOML basic string for an ASCII path, and `toml` is not a
+  dev-dependency of `goad-check` (`serde_json` is).
+- *Each README's section is renamed* *Run it from anywhere else* → *Run your
+  own copy*: every example now runs from anywhere as shipped, so the old
+  heading promised what no longer needs a copy. Nothing links to it (grep).
+- *focus-check's reason for a copy is editing, not the socket.* It has no
+  `[ingress]` and keeps its state under `$XDG_STATE_HOME`, so it runs from an
+  installed kit as it is; its README keeps *copy this directory out* for the
+  one reason that applies to it — an installed kit is read-only, so a change
+  needs a copy. EX-5's socket reason is stated in the two event-driven
+  READMEs only.
+- *The README fences stay as the copy's config*, introduced with *Its config
+  needs no edit:*; the *becomes, in your copy, …* sentences are deleted, and
+  `goad-emit` (and `watch.sh`) are told to take the copy's `goad.sock` with
+  `--socket`, since `goad-emit` reads only the default config file.
+- *`watch.sh`'s example keeps `--socket ./goad.sock`*, now introduced as
+  *from this directory*, so the header holds wherever it is read from.
+- *`events.md`'s `--socket ./goad.sock` example is kept*: the new sentence
+  says a relative `--socket` is relative to where `goad-emit` runs.
 
 **Findings**
+- M12 also reds three `args.rs` unit cases that compare the whole parsed
+  `Command`: the argv form's `working_directory: None` is already held at
+  the unit tier as a value, and VT-2 adds the behaviour.
+- Both pins were green on first run with no adjustment: the `#!/bin/sh`
+  decoys run under `PATH` = `<root>/path` alone (the plan's *first tested
+  here* assumption holds), and `goad-check -- ./backend.sh` from the
+  backend's directory is accepted.
+- No socket, lock or log in any crate or kit directory after the runs
+  (`git status` lists only Surfaces); the cases' roots are under
+  `temp_dir()`.
 
 ## Owed
 
@@ -813,7 +887,7 @@ when.
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-19 · PHASE-02 · see the PHASE-02 commits
+**Fresh as of:** 2026-10-19 · PHASE-03 · see the PHASE-03 commit
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -830,6 +904,15 @@ when.
   (an addition to §9); `transport.rs` VT-10. D10: the TypeScript README's
   config is relative to its directory, `rooted_at_the_workspace` gone. AC-2:
   `examples.rs::run_checker` starts in the hand-out root.
+- Pins `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`
+  and `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory`
+  (M11, M12 red them); `process.rs::check_in`; `run.rs::root` held by
+  `claim` (kind `checker root`).
+- Kit states the new rule: `running.md` *Name your command* and the
+  `ingress.path` row (107-byte limit, `$XDG_RUNTIME_DIR` remedy),
+  `checking.md` (`--config` vs the argv form), `events.md` (`goad-emit`'s
+  socket); each example's config comment and README *Run your own copy*;
+  `watch.sh` header. No draft id cited in `kit/`.
 
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
@@ -840,6 +923,8 @@ when.
   stays green (PHASE-02 mutation table): D5's premise, measured.
 - A spawn case's log lives inside its claimed `directory`; no second
   claimed kind needed (PHASE-02 Decisions).
+- "Judged" is too weak a pin for a spawn location: a spawn failure is judged
+  too (exit 1). Pin on accepted (PHASE-03 Decisions, VT-2).
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->

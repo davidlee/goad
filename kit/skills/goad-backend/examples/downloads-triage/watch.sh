@@ -4,7 +4,8 @@
 # (inotify-tools), `goad-emit` and `jq` on PATH.
 #
 # Arguments are passed through to goad-emit, so a host started on this
-# example's config.toml is reached with:
+# example's config.toml is reached by passing the goad.sock beside it; from
+# this directory:
 #
 #   bash watch.sh --socket ./goad.sock
 #

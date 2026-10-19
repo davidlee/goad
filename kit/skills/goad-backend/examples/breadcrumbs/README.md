@@ -33,14 +33,17 @@ To have your shell report every directory change, source `chpwd.zsh` from
 `~/.zshrc`; it reaches a host started on the default configuration, and says
 where to add `--socket` for any other.
 
-## Run it from anywhere else
+## Run your own copy
 
-`command` and `[ingress] path` are relative to the directory goad is started
-in. Copy this directory out and make both absolute:
+`command` and `[ingress] path` are relative to the config file's directory,
+so goad and `goad-check` find both wherever you start them. A running host
+writes `goad.sock` and `goad.sock.lock` beside the config file, and an
+installed kit is read-only, so copy this directory out and run your copy. Its
+config needs no edit:
 
 ```toml goad:config
-# `command` and the socket are relative to this directory: run goad and
-# goad-check from here.
+# `command` and the socket are relative to this file's directory, wherever
+# goad or goad-check is started.
 [backend]
 command = ["deno", "run", "--allow-read", "--allow-write", "--allow-env=HOME,XDG_STATE_HOME", "backend.ts"]
 timeout = "30s"
@@ -53,10 +56,8 @@ default_poll = "30m"
 path = "./goad.sock"
 ```
 
-becomes, in your copy, `"/absolute/path/to/backend.ts"` as the last element
-of `command` and `path = "/absolute/path/to/goad.sock"`. Pass the same
-`--socket` to `goad-emit`. A running host leaves `goad.sock` and
-`goad.sock.lock` in the directory it was started in.
+To reach your copy's goad, pass `goad-emit` the path to your copy's
+`goad.sock` with `--socket`.
 
 ## Behaviour
 

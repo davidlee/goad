@@ -40,6 +40,23 @@ pub(crate) fn check(arguments: &[impl AsRef<OsStr>]) -> Output {
     .expect("the built binary must be runnable")
 }
 
+/// The same spawn started in `directory`, with each of `environment` set on
+/// this child alone: how a case decides the checker's working directory and
+/// `PATH` without touching the test process's own, which every parallel case
+/// shares.
+pub(crate) fn check_in(
+  directory: &Path,
+  environment: &[(&str, &OsStr)],
+  arguments: &[impl AsRef<OsStr>],
+) -> Output {
+  std::process::Command::new(env!("CARGO_BIN_EXE_goad-check"))
+    .args(arguments)
+    .current_dir(directory)
+    .envs(environment.iter().copied())
+    .output()
+    .expect("the built binary must be runnable")
+}
+
 /// The same spawn with standard output on `/dev/full`, where every write
 /// fails. A copy of `goad-emit`'s `emit_with_stdout_full`.
 pub(crate) fn check_with_stdout_full(arguments: &[impl AsRef<OsStr>]) -> Output {

@@ -69,9 +69,10 @@ static CLAIMED: LazyLock<Mutex<BTreeSet<(&'static str, String)>>> = LazyLock::ne
 /// **Held, and unheld.** `claim` holds `marker` below; the `socket_path`s in
 /// `crates/goad/tests/renderer/ingress.rs`,
 /// `crates/goad/tests/renderer/startup.rs` and
-/// `crates/goad-shell/tests/integration/ingress.rs`; and the `directory`s in
+/// `crates/goad-shell/tests/integration/ingress.rs`; the `directory`s in
 /// `crates/goad/tests/renderer/startup.rs` and
-/// `crates/goad-shell/tests/integration/working_directory.rs`. Others make the
+/// `crates/goad-shell/tests/integration/working_directory.rs`; and `root` in
+/// `crates/goad-check/tests/binary/run.rs`. Others make the
 /// same promise and are unheld: `crates/goad-emit/tests/binary/exchange.rs`'s
 /// `socket_path` and `config_home`, `crates/goad-emit/src/main.rs`'s
 /// `config_home` (destructive in the same way `clear` is, since it writes or
@@ -92,16 +93,16 @@ static CLAIMED: LazyLock<Mutex<BTreeSet<(&'static str, String)>>> = LazyLock::ne
 /// kind would report a collision between paths that differ. A kind is *not* a
 /// concept and it is not the prefix either: the held helpers mint
 /// `goad-<name>-<pid>`, `goad-serve-<name>-<pid>.sock`,
-/// `goad-startup-<name>-<pid>.sock`, `goad-ingress-<name>-<pid>.sock` and
-/// `goad-wd-<name>-<pid>.d`, and `marker`'s prefix is the bare `goad-` that
-/// all of them share (F-21). What holds a marker's paths apart from every
-/// other helper's is that the pid comes **last**, so a marker path ends in
-/// digits and can never end `.sock` or `.d`, whatever it is named (F-23) — and
-/// `goad-emit`'s unheld helpers are the standing demonstration, minting
-/// `goad-emit-<case>-<pid>`, `goad-emit-<case>-<pid>.sock` and
-/// `goad-emit-<case>-<pid>.d` off one prefix. A new kind must therefore be
-/// checked against the paths the others mint, not assumed distinct because its
-/// name is.
+/// `goad-startup-<name>-<pid>.sock`, `goad-ingress-<name>-<pid>.sock`,
+/// `goad-wd-<name>-<pid>.d` and `goad-check-<name>-<pid>.d`, and `marker`'s
+/// prefix is the bare `goad-` that all of them share (F-21). What holds a
+/// marker's paths apart from every other helper's is that the pid comes
+/// **last**, so a marker path ends in digits and can never end `.sock` or
+/// `.d`, whatever it is named (F-23) — and `goad-emit`'s unheld helpers are
+/// the standing demonstration, minting `goad-emit-<case>-<pid>`,
+/// `goad-emit-<case>-<pid>.sock` and `goad-emit-<case>-<pid>.d` off one
+/// prefix. A new kind must therefore be checked against the paths the others
+/// mint, not assumed distinct because its name is.
 ///
 /// # Panics
 ///
