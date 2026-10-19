@@ -3,10 +3,11 @@
 # backend, see `kit/`.
 #
 # `command` is an argument vector, never a shell string — goad interposes no
-# shell. Relative paths resolve against goad's working directory, which `just`
-# sets to the repository root.
+# shell. A relative path here, and the backend's working directory, resolve
+# against the directory of this file (SPEC-001/R-60), so the demo runs the same
+# from any directory.
 [backend]
-command = ["bash", "exercisers/shell/backend.sh"]
+command = ["bash", "shell/backend.sh"]
 timeout = "5s"
 
 # The backend inherits this process's environment, which the demo backend uses
@@ -54,22 +55,25 @@ default_poll = "30s"
 #
 #   just emit reddit-watcher reddit-opened
 #
-# which is `goad-emit --socket ./goad-demo.sock --source … --kind …`. The
+# which is `goad-emit --socket exercisers/goad-demo.sock --source … --kind …`. The
 # `--socket` is not optional: emit discovers the host's *default*
 # configuration path only, and the demo runs on an explicit one.
 #
 # The raw forms stay, because SPEC-003 is what a second implementation is held
 # to and a worked example of the wire is worth more here than a shorter file
 # (both terminated forms — `socat` by half-closing its write side after EOF,
-# `nc` by the trailing newline — see SPEC-003/R-6):
+# `nc` by the trailing newline — see SPEC-003/R-6). Run these from the
+# repository root; the socket is `exercisers/goad-demo.sock`:
 #
 #   printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}' \
-#     | socat - UNIX-CONNECT:./goad-demo.sock
+#     | socat - UNIX-CONNECT:exercisers/goad-demo.sock
 #
 #   printf '{"source":"reddit-watcher","kind":"reddit-opened","timestamp":"2026-08-22T17:10:00+10:00","data":{}}\n' \
-#     | nc -U ./goad-demo.sock
+#     | nc -U exercisers/goad-demo.sock
 #
-# The reply is one JSON line on the same connection. The socket lives in the
-# checkout deliberately (D-17); `.gitignore` keeps it out of `git status`.
+# The reply is one JSON line on the same connection. A relative `path` resolves
+# against this file's directory, so the socket is `exercisers/goad-demo.sock`
+# wherever goad was started from. It lives in the checkout deliberately (D-17);
+# `.gitignore` keeps it out of `git status`.
 [ingress]
 path = "./goad-demo.sock"

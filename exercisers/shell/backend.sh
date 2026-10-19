@@ -4,7 +4,7 @@
 #
 # The protocol is one JSON document in on stdin, one JSON document out on
 # stdout, per process. Nothing here needs a runtime, a package manager, or a
-# shebang: the config names `["bash", "exercisers/shell/backend.sh"]`, so bash is
+# shebang: the config names `["bash", "shell/backend.sh"]`, so bash is
 # the program and this file is its argument. It is bash rather than `sh`
 # deliberately — `${value//from/to}` below is a bash expansion.
 #

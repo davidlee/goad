@@ -76,7 +76,7 @@ demo: (run "exercisers/demo.toml")
 
 # Prompt an evaluation in a running `just demo`, from a second shell.
 emit source kind:
-  cargo run -p goad-emit -- --socket ./goad-demo.sock --source {{source}} --kind {{kind}}
+  cargo run -p goad-emit -- --socket exercisers/goad-demo.sock --source {{source}} --kind {{kind}}
 
 # Not in the gate, and deliberately: POL-001's six commands are the gate and
 # nothing here joins them (D8). The residue that buys is stated in the design —
@@ -85,8 +85,9 @@ emit source kind:
 #
 # The flake reference is the **bare git form** — `.#goad`, never `path:.`. A
 # `path:` reference copies the working directory into the store, and this one
-# holds `goad-demo.sock`, a unix socket nix refuses outright, and
-# `.claude/worktrees/`, six gitignored worktrees it would copy anyway. The bare
+# holds `exercisers/goad-demo.sock`, a unix socket nix refuses outright (so do
+# the kit examples' `goad.sock` files, once an example has run), and
+# `.claude/worktrees/`, gitignored worktrees it would copy anyway. The bare
 # form reads the git tree instead, which has its own edge: **an untracked file
 # is invisible to it.** `git add` a new file before building, or the build is of
 # a tree that does not contain it.

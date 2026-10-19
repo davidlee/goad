@@ -11,7 +11,7 @@ after the slice closes is lifted into the Harvest section.
 | PHASE-01 | done | 2026-10-19 |
 | PHASE-02 | done | 2026-10-19 |
 | PHASE-03 | done | 2026-10-19 |
-| PHASE-04 | pending | 2026-10-19 |
+| PHASE-04 | awaiting VH-1 | 2026-10-19 |
 
 ## Phase sheets
 
@@ -1017,27 +1017,79 @@ commands, records what they saw under *VH-1* below, and sets `done`.
 6. Cite by symbol, never line number; name, never count.
 
 **Tasks**
-- [ ] Print `git log -1 --oneline`; record it. §Status PHASE-04 `in progress`.
-- [ ] `just -n check` recorded (before).
-- [ ] EX-1 `demo.toml`; EX-4 `backend.sh` header.
-- [ ] EX-2 `justfile`; EX-3 `.gitignore`; EX-5 memory note; EX-7
+- [x] Print `git log -1 --oneline`; record it. §Status PHASE-04 `in progress`.
+- [x] `just -n check` recorded (before).
+- [x] EX-1 `demo.toml`; EX-4 `backend.sh` header.
+- [x] EX-2 `justfile`; EX-3 `.gitignore`; EX-5 memory note; EX-7
       `shell_example`'s doc.
-- [ ] VA-1, VA-2, VA-3 recorded; EX-6 §Owed updated; VA-4 §Open boxes.
-- [ ] `just -n check` recorded (after; identical); `just check` exits 0.
-- [ ] §Status PHASE-04 `awaiting VH-1`; §Harvest; commit; stop.
+- [x] VA-1, VA-2, VA-3 recorded; EX-6 §Owed updated; VA-4 §Open boxes.
+- [x] `just -n check` recorded (after; identical); `just check` exits 0.
+- [x] §Status PHASE-04 `awaiting VH-1`; §Harvest; commit; stop.
 - [ ] *(orchestrator)* VH-1 handed to the person; result recorded; `done`.
 
-**VA-1 — hits, classed**
+**VA-1 — hits, classed** (at the PHASE-04 commit, before it)
+
+First grep (`demo.toml`, `goad-demo.sock`, `shell/backend.sh`, outside
+`docs/slices`):
+- *Edited here, now true:* `.gitignore` (the two socket entries and their
+  comment), `exercisers/demo.toml` (`command`, `path`, the `just emit` / `socat`
+  / `nc` lines), `exercisers/shell/backend.sh` header, `justfile` (`demo`
+  unchanged; `emit`'s `--socket`; the `package` comment),
+  `round_trip.rs::shell_example`'s doc and path,
+  `docs/memory/path-flake-ref-breaks-on-demo-socket.md`.
+- *Name the file only, still true:* `README.md` (the demo runs against
+  `exercisers/demo.toml` and `exercisers/shell/backend.sh`), `docs/roadmap.md`
+  (same), `crates/goad-check/src/args.rs` `DEFAULT_TIMEOUT`'s doc,
+  `docs/memory/a-backend-exchange-has-no-useful-duration.md` (the 5 s timeout),
+  `flake.nix`'s `goad-shot` comment (`cargo run -- exercisers/demo.toml`: a
+  path to the config; the socket's place is the config's business now).
+- *Claims about argv or the socket in a file outside Surfaces:* none.
+
+Second grep (`working directory`, `started in`, `repository root`, in
+`exercisers`, `justfile`, `.gitignore`, the memory note): `demo.toml` lines 6
+and 66 and the memory note's parenthesis state the new rule or name the old one
+as history; `justfile`'s `path:` sentence is about nix's copy of the working
+directory, true. No hit states the old rule as current.
 
 **VA-2 — §9 / §7 cases resolved; renames and additions for audit**
 
+Every test path named in `design.md` §9 and in `canon-delta.md`'s §7 rows
+(extracted by script: each backticked or `::`-qualified snake_case name of 13+
+characters) resolves to a `fn` of that name under `crates/`. The two that did
+not match are not tests: `read_to_string` (a method named in a row's prose) and
+`working_directory` (a field). Unresolved cases: none.
+
+Renames: none. Additions, for audit's re-pointing:
+- PHASE-01: none (every case ships under §9's name in §9's file).
+- PHASE-02: `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable`
+  (VT-9, an addition to §9); `working_directory.rs::logging_script`,
+  `config_in` (case-written backend and config helpers).
+- PHASE-03: `process.rs::check_in`; `run.rs::root`, `labelled_backend`,
+  `labels` (helpers, not cases).
+
 **VA-3 — root sockets**
+
+`git worktree list` shows two checkouts. `/home/david/dev/goad` holds
+`goad-demo.sock` and `goad-demo.sock.lock`;
+`/home/david/dev/goad/.claude/worktrees/slice-015` holds neither.
 
 **VH-1 — the person's run** (recorded by the orchestrator)
 
 **Decisions taken during execution**
+- *`demo.toml` says where the raw forms are run from* (the repository root,
+  socket `exercisers/goad-demo.sock`) rather than going path-independent: the
+  worked wire examples stay short, and `just emit` runs from the root anyway.
+- *D-17 stays:* the socket still lives in the checkout deliberately.
+- *The `package` comment names the kit examples' `goad.sock` files* as
+  "once an example has run": the kit's event-driven examples bind them beside
+  their configs (PHASE-03's rule), where the `.gitignore` already lists them.
+- *`.gitignore` and `demo.toml` cite `SPEC-003/R-17` / `SPEC-001/R-60`* ahead
+  of promotion, as the code already does (PHASE-01/02 Findings).
 
 **Findings**
+- `flake.nix`'s `goad-shot` comment still reads true; no edit (outside
+  Surfaces, and nothing false).
+- `just -n check` is byte-identical before and after.
 
 ## Owed
 
@@ -1050,13 +1102,17 @@ when.
   (the `.lock` shows as untracked otherwise: `research.md` T2-S7;
   `review-design.md` F-17). The person deletes them; an agent lists which
   checkouts hold them.
+  **Held (VA-3, PHASE-04):** `/home/david/dev/goad` (the main checkout) holds
+  `goad-demo.sock` and `goad-demo.sock.lock`; the `slice-015` worktree holds
+  neither, and `git worktree list` shows no other checkout. Delete after the
+  merge, in the main checkout only.
 
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
      restate content that lives elsewhere. -->
 
-**Fresh as of:** 2026-10-19 · PHASE-03 · see the PHASE-03 commit
+**Fresh as of:** 2026-10-19 · PHASE-04 (to VH-1) · see the PHASE-04 commit
 
 ### Produced
 <!-- What now exists: modules, contracts, docs. -->
@@ -1083,6 +1139,10 @@ when.
   socket); each example's config comment and README *Run your own copy*;
   `watch.sh` header. No draft id cited in `kit/`.
 
+- `demo.toml` runs from any directory: `["bash", "shell/backend.sh"]`,
+  socket `exercisers/goad-demo.sock` (`.gitignore` follows); `just emit` passes
+  that path. Memory note `path-flake-ref-breaks-on-demo-socket` updated.
+
 ### Learned
 <!-- Durable facts a future agent would otherwise rediscover. Candidates for
      `docs/memory/`. -->
@@ -1097,3 +1157,36 @@ when.
 
 ### Open
 <!-- Still unresolved at this point. Candidates for follow-ups. -->
+
+*From `plan.md` §Overview, Owed to audit and close (VA-4), one box per bullet:*
+- [ ] **Promote `canon-delta.md`** — SPEC-001 Changes 1-3 and SPEC-003 Changes
+  1-4, with the person's endorsement, recorded in `audit.md`'s Reconciliation
+  table; after 012's promotion by preference, not as a gate.
+- [ ] **Re-point the §7 test citations** in both rows to the symbols that
+  shipped (see VA-2's additions) and confirm each resolves.
+- [ ] **The kit's citation of the new ids** — once promoted, decide with the
+  person whether `running.md` and `events.md` cite R-60 / R-17.
+- [ ] **Record the person's run** (VH-1) in `audit.md` §Evidence; re-run VH-1
+  on the repaired build if an audit repair touches `goad_shell::config` or the
+  spawn.
+- [ ] **Slice 012's drift row** — already in `docs/slices/012/plan.md` §Owed;
+  audit names the hand-off, does not edit 012's record.
+- [ ] **The design's residues**, as follow-up candidates: `main.rs::start`
+  held by review and AC-4 only (D11); `/dev/stdin` or process-substitution
+  config paths refused (D4); a relative `PATH` entry now means the config's
+  directory (§5.5).
+- [ ] **The Owed box** (stale root `goad-demo.sock` pair) — ticked by the
+  person after the merge.
+- [ ] **Disposition every other §Open candidate** at close.
+
+*Audit-bound findings from PHASE-01..03:*
+- [ ] `startup.rs::listener::socket_path`'s doc says "the third such helper in
+  this test binary" — a count the never-count rule forbids.
+- [ ] `Config::parse`'s doc reads "is the only caller that need" (nit).
+- [ ] `running.md` *"the file and your backend can move together"* — "the file"
+  is the config file, left implicit (nit).
+- [ ] `SPEC-001/R-60` is cited in `process.rs`, `error.rs` and now
+  `exercisers/demo.toml` (and `SPEC-003/R-17` in `.gitignore`) ahead of
+  promotion; confirm none reaches `main` unpromoted.
+- [ ] Memory candidate: a path assertion about bytes must compare `OsStr`, not
+  `Path` (`Path` equality ignores an interior `.`).

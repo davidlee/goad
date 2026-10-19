@@ -201,8 +201,10 @@ async fn the_bash_backend_completes_the_same_round_trip() {
 ///
 /// Rooted at the crate for the reason `harness.rs::example` gives: a test
 /// binary's working directory is not something to rely on. `["bash", script]`
-/// is the argument vector `exercisers/demo.toml` names, so this runs the exerciser
-/// exactly as the demo does.
+/// is the program and script `exercisers/demo.toml` names, so this runs the same
+/// exerciser. It differs in what the config's directory supplies: the demo's
+/// script path is relative and its working directory is `exercisers/`, while
+/// this one is an absolute script path with the caller's working directory.
 fn shell_example() -> Command {
   let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../exercisers/shell/backend.sh");
   Command::new("bash", vec![script.display().to_string()])
