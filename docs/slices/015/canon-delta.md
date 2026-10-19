@@ -10,9 +10,11 @@ Reconciliation table.
 (`design-log.md` 2026-10-19, *canon wording*). Review may still change it;
 any change returns to the person.
 
-**Promote after slice 012.** R-60 skips R-59, which 012's unpromoted delta
-holds. Promoting this delta first would leave SPEC-001 with a gap until 012's
-audit fills it. 015's audit waits for 012's promotion, or says why not.
+**Promotion order: after slice 012, by preference, not as a gate.** R-60
+skips R-59, which 012's unpromoted delta holds. If 015 closes first, its audit
+promotes this delta anyway — a slice does not close holding a draft — and
+SPEC-001 carries R-60 with no R-59 until 012's audit fills it (`design-log.md`
+2026-10-19, *design review round 1 dispositions*, F-10).
 
 Test names are `design.md` §9's; at audit each is re-pointed to the symbol that
 shipped. Nothing here cites a line number, and nothing here counts.
@@ -30,7 +32,7 @@ cites it; R-60 does not collide whichever slice promotes first.
 
 ### Change 1 — §4 *Process transport*: new R-60, placed after R-36
 
-> | R-60 | **A backend runs in its configuration's directory.** A command loaded from a configuration file MUST be started with that file's directory as its working directory, the file's path first resolved through every symbolic link in it, so the directory is the target's and never a link's. The host MUST NOT rewrite any element of the argument vector: each argument is passed as written whether or not it looks like a path, and the program receives its own name as written. The program is the one element the host locates. A program that is a relative path — it contains a `/` and does not begin with one — MUST be executed from that same directory, by the host's own resolution and not by whatever a platform does with a relative program under a changed working directory, which is not uniform. A program with no `/` is looked up on `PATH`. A program that cannot be started is R-44's *command not spawnable*. | §7 |
+> | R-60 | **A backend runs in its configuration's directory.** A command loaded from a configuration file MUST be started with that file's directory as its working directory, the file's path first resolved through every symbolic link in it, so the directory is the target's and never a link's. The host MUST NOT rewrite any argument: each is passed as written, whether or not it looks like a path. The program is the one element the host locates. A program that is a relative path — it contains a `/` and does not begin with one — MUST be executed as that path joined onto the same directory, by the host's own resolution and not by whatever a platform does with a relative program under a changed working directory, which is not uniform; the joined path is the name the program receives, a script and a native program alike. A program with no `/` is looked up on `PATH`. A program that cannot be started is R-44's *command not spawnable*, and its report MUST name the path the host tried to execute and the working directory it tried to execute it in. | §7 |
 
 **Why.** R-36 says what the command is and nothing about where it runs, so a
 relative path meant the directory the host was started in — a different
@@ -40,30 +42,42 @@ permissive-parsing invariant forbids; the working directory fixes the common
 case (`["python3", "backend.py"]`) without a guess (`design-log.md`
 2026-10-19, OQ-1). Links resolve to the target because the live config is a
 link (OQ-2). The program clause exists because Rust's `Command::current_dir`
-leaves a relative program platform-specific (`research.md` T2-S1).
+leaves a relative program platform-specific (`research.md` T2-S1). The
+program receives the joined path, not its name as written, because a script
+cannot receive anything else: its interpreter is handed the path `exec` was
+given, whatever the first argument says (`review-design.md` F-1). The report's
+paths are required because the place a program is looked for may now be a
+directory the person never typed (F-11).
 
 ### Change 2 — §6.4 *Process transport*: one paragraph, after the first
 
 > **Where the backend runs** (R-60). A configuration file and its backend can
 > move together as one directory. The backend's working directory is the
 > file's own, through any links, so `["python3", "backend.py"]` names the
-> `backend.py` beside the file however the host was started. Nothing in the
-> argument vector is reinterpreted to get there — the host cannot tell an
-> argument that is a path from one that only resembles one — so the working
-> directory is the mechanism. The program is the exception because executing
-> it is the host's own act: a relative one with a `/` is found beside the
-> file, and a bare name on `PATH`, as a shell would find it.
+> `backend.py` beside the file however the host was started. No argument is
+> reinterpreted to get there — the host cannot tell an argument that is a path
+> from one that only resembles one — so the working directory is the
+> mechanism. The program is the exception because executing it is the host's
+> own act: a relative one with a `/` is executed by its path beside the file
+> and receives that path as its name. A script's interpreter is handed the
+> path it was executed by, whatever the host passes as the first argument, so
+> no other name could be promised to a script and a native program alike. A
+> bare name is looked up on `PATH` after the change of directory, so a
+> relative entry in `PATH` names a directory under the backend's working
+> directory; that is the environment's choice. A failure to start names both
+> the path and the directory, because neither need be one the person typed.
 
 **Why.** §6.4 is the transport's prose; R-60 needs its reason stated where the
 transport is described, as R-41's budgets are.
 
 ### Change 3 — §7 *Verification*: R-60's row, placed after R-36's
 
-> | R-60 | integration, every case loading its configuration with `Config::load` and driving a real backend from a working directory that is **not** the configuration's, so the behaviour R-60 replaces fails each one. All `crates/goad-shell/tests/integration/working_directory.rs`: `::a_relative_argument_resolves_beside_the_config_from_another_directory` — the working directory, which the backend reports with `pwd -P`, and the argument as written, which it reports as its `$0`; `::a_linked_config_runs_its_backend_beside_the_target` — through a link to the file and through a link in a directory component, each with a decoy backend beside the link that answers differently; `::a_relative_program_with_a_slash_resolves_beside_the_config`; `::a_program_with_no_slash_is_never_looked_for_beside_the_config` — the `PATH` clause, against an executable of that name beside the configuration; `::the_backend_receives_its_program_as_written` — the program's own name, observed as argv[0] of a native program. Unit, the resolution as a pure function: `crates/goad-shell/src/config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash`. Through a built binary: `crates/goad-check/tests/kit/examples.rs::each_shipped_example_is_accepted_by_the_checker` starts the checker outside each kit example's directory, and the checker spawns as the host does |
+> | R-60 | integration, every case loading its configuration with `Config::load` and driving a real backend from a working directory that is **not** the configuration's, all `crates/goad-shell/tests/integration/working_directory.rs`. Red under the spawn R-60 replaces: `::a_relative_argument_resolves_beside_the_config_from_another_directory` — the working directory, which the backend reports with `pwd -P`, and the argument as written, which it reports as its `$0`; `::a_linked_config_runs_its_backend_beside_the_target` — through a link to the file, with a decoy backend beside the link that answers differently; `::a_relative_program_with_a_slash_is_executed_as_the_anchored_path` — the script's `$0` is the joined path, which is also what tells the host's own resolution from the platform's: under a changed working directory the platform executes the same file, and the script's `$0` stays relative; `::a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` — the report names the joined path and the directory. A pin, green under the old spawn and red under an implementation that looks beside the configuration for a bare name: `::a_program_with_no_slash_is_found_on_path_not_beside_the_config`, which sets `PATH` itself so that the inherited environment cannot decide it. A link in a **directory** component of the configuration's path is not observable at the spawn — a working directory reached through a directory link is the target directory — so it is held on the loaded value: `::a_config_reached_through_a_linked_directory_is_anchored_at_the_target` asserts the command's working directory is the target's. Unit, the resolution as a pure function: `crates/goad-shell/src/config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash`. Through a built binary: `crates/goad-check/tests/kit/examples.rs::each_shipped_example_is_accepted_by_the_checker` starts the checker outside each kit example's directory, and the checker spawns as the host does |
 
-**Why.** Every row names its tests (§7's convention). Each integration case is
-red under today's spawn, which is what makes it evidence rather than a
-description.
+**Why.** Every row names its tests (§7's convention). The row says which cases
+are red under today's spawn and which is a pin, and why the directory-link
+half is held on a value rather than a process (`review-design.md` F-2, F-3,
+F-4, F-5).
 
 ---
 
@@ -73,7 +87,7 @@ No id is renumbered. One is added: **R-17**, the next free id.
 
 ### Change 1 — §4 *Requirements*: new R-17, placed after R-16
 
-> | R-17 | A relative socket path MUST be resolved against the directory of the configuration file that names it, found as SPEC-001/R-60 finds it — through every symbolic link in the file's path — and never against the directory the host was started in. The resolved path is the path R-1 to R-5 speak of, and the one every startup failure names. A resolved path too long for a socket address is a failure to bind, and R-4's. | §7 |
+> | R-17 | A relative socket path MUST be resolved against the directory of the configuration file that names it, found as SPEC-001/R-60 finds it — through every symbolic link in the file's path — and never against the directory the host was started in. The resolved path is the path R-1 to R-5 speak of, and the one each of their startup failures names. A resolved path too long for a socket address is a failure to bind, and R-4's. | §7 |
 
 **Why.** §6.1 says the path comes from the configuration and not what a
 relative one means, so it meant the directory the host was started in. The
@@ -108,7 +122,7 @@ that causes it.
 
 ### Change 3 — §7 *Verification*: R-17's row, placed after R-16's
 
-> | R-17 | renderer and unit. `listener::a_relative_configured_path_binds_beside_the_config` (`crates/goad/tests/renderer/startup.rs`) loads a configuration naming `./goad.sock` with `Config::load`, from a working directory that is not the configuration's, and asserts a socket at the configuration's canonical directory and none in the working directory. The resolution itself, byte for byte so that no `./` survives into a length-limited address: `config::tests::a_relative_path_resolves_against_the_directory_given` (`crates/goad-shell/src/config.rs`). The length clause: `ingress::a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path` (`crates/goad-shell/tests/integration/ingress.rs`), with a path one byte shorter binding in the same directory as its control |
+> | R-17 | renderer, integration and unit. `listener::a_relative_configured_path_binds_beside_the_config` (`crates/goad/tests/renderer/startup.rs`) loads a configuration naming `./goad.sock` with `Config::load`, from a working directory that is not the configuration's, and asserts a socket at the configuration's canonical directory and none in the working directory. The resolution itself, byte for byte so that no `./` survives into a length-limited address: `config::tests::a_relative_path_resolves_against_the_directory_given` (`crates/goad-shell/src/config.rs`). The length clause: `ingress::a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path` (`crates/goad-shell/tests/integration/ingress.rs`) — one byte too long is R-4's failure to bind, naming the path, and one byte shorter binds in the same directory as its control. The platform's own wording of the refusal is not asserted |
 
 ### Change 4 — §9 *References*: SPEC-001's entry
 

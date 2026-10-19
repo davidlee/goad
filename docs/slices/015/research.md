@@ -176,7 +176,9 @@ Canon by id and section. Code by `path::symbol`, never by line number.
 - T2-S5 ✓ `UnixListener::bind` and `UnixStream::connect`: 107 bytes succeed;
   108 and over fail with `InvalidInput`, *path must be shorter than SUN_LEN*.
 - T2-S6 ✓ `std::fs::canonicalize` of a missing file is `NotFound`; it resolves
-  every link, file and directory components alike.
+  every link, file and directory components alike. It also refuses a path
+  that names no file in a directory (`/dev/stdin` on a pipe:
+  `review-design.md` R1-S5).
 - T2-S7 ✓ `git status` lists no socket file, but does list the regular
   `.lock` file beside it.
 
@@ -197,10 +199,23 @@ Canon by id and section. Code by `path::symbol`, never by line number.
 
 ## Design-input deltas
 
-- Resolve a relative program containing `/` in the host (T2-S1), and keep
-  argv[0] as written with `arg0` (T2-S2), so *argv is never rewritten* is true
-  of what the child receives.
+- Resolve a relative program containing `/` in the host (T2-S1); the program
+  receives the anchored path as its name. No `arg0`: it would reach an ELF
+  program only, never a script (T2-S2; `review-design.md` F-1).
+- Set the child's `PWD` to its working directory (`review-design.md` R1-S7,
+  F-7).
 - No new length check: R-4's `Unbindable` already refuses it (T2-8, T2-S5);
   the slice pins it with a test.
-- `canonicalize` failure is a `ConfigError::Read`: the same subjects (missing,
-  unreadable, dangling link) as `read_to_string`'s, same message.
+- `canonicalize` failure is a `ConfigError::Read`: for a file in a directory,
+  the same subjects (missing, unreadable, dangling link) as
+  `read_to_string`'s, same message. Not for a config that is no file in a
+  directory — `/dev/stdin`, `<(…)`, `/proc/self/fd/N` are refused as
+  `NotFound` (`review-design.md` R1-S5, F-6); tolerated, `design.md` D4.
+- A working directory reached through a directory link is the target
+  directory, so the directory-link case is observable only in the loaded
+  `Config`'s strings, not at the spawn (`review-design.md` F-3).
+- Further prose stating the old rule, beyond T2-10 and T2-11:
+  `kit/skills/goad-backend/reference/events.md`, `downloads-triage/watch.sh`'s
+  header, `.gitignore`'s kit-example paragraph, and the docs of
+  `crates/goad-check/tests/kit/main.rs`, `examples.rs::run_checker` and
+  `tree.rs::files` (`review-design.md` F-9).

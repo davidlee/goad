@@ -3,10 +3,14 @@
 **Stage:** design
 **Tier:** 2 (full) — it adds a rule to SPEC-001, which states nothing today
 about where a backend command runs.
-**Depends on:** slice 012's promotion of `canon-delta.md`, before this
-slice promotes its own (R-60 follows 012's R-59). Its `kit/` edits wait for
-slice 012's PHASE-10, which may edit the same files (one writer per
-worktree).
+**Depends on:** nothing, to ship. Code and its kit and exerciser prose land
+together in one merge from this slice's own branch and worktree, and that
+merge goes to `main` when the slice ships, without waiting on slice 012's
+PHASE-10 if 012 has not moved; only a PHASE-10 actually in flight is
+coordinated with (one writer per file). Promotion after 012's is a
+preference: if this slice closes first it promotes its own delta, and
+SPEC-001 carries R-60 with no R-59 until 012's audit (`design-log.md`
+2026-10-19, *design review round 1 dispositions*, F-10).
 
 ## Purpose
 
@@ -43,8 +47,15 @@ directory (OQ-1, settled).
 - `goad-emit`, which reads `ingress.path` through `Config::load` when
   `--socket` is absent. Its command line does not change.
 - The kit's prose that states today's rule: `running.md` (*SPEC-001/R-36*,
-  and its `ingress.path` row), `checking.md`, and the examples' configs and
-  READMEs that say to run goad from the example's directory.
+  and its `ingress.path` row), `checking.md`, `events.md` (`goad-emit`'s
+  socket rule), the examples' configs and READMEs that say to run goad from
+  the example's directory (they keep *copy this directory out*, with its new
+  reason), and `downloads-triage/watch.sh`'s header.
+- `goad-shell`'s `BackendError::Spawn`, which gains the executable and the
+  working directory (`design.md` D13), and the tests that match or build it.
+- The `goad-check` kit tier's docs that AC-2's change makes false
+  (`tests/kit/main.rs`, `examples.rs`, `tree.rs`), and `.gitignore`'s
+  kit-example paragraph.
 - `exercisers/demo.toml` (its `command` and socket path become relative to
   `exercisers/`), the `justfile` recipe and comment that name the demo's
   socket, and `.gitignore`'s entries for it.

@@ -42,6 +42,18 @@ after the slice closes is lifted into the Harvest section.
      work get fixed, not recorded. These feed the audit; the ones that outlive
      the slice become Follow-ups. -->
 
+## Owed
+
+Manual steps no phase's code reaches; each a box, ticked with who did it and
+when.
+
+- [ ] Delete the stale `goad-demo.sock` and `goad-demo.sock.lock` at the
+  repository root of **every checkout** — the person's main checkout, and each
+  worktree under `.claude/worktrees/` — once `.gitignore` drops their entries
+  (the `.lock` shows as untracked otherwise: `research.md` T2-S7;
+  `review-design.md` F-17). The person deletes them; an agent lists which
+  checkouts hold them.
+
 ## Harvest
 
 <!-- Updated in place, not appended. Ids and one-line hooks only — never
