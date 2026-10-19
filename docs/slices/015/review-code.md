@@ -562,7 +562,21 @@ slice's, not edited. Class sweep within the files this round touched
 `design.md` by line (from `bc06d6d`), now §5.4 *Startup*, §5.4's note after
 the `respond` sequence, and §5.5 *Edge cases*' `timeout = "0s"` row; and
 `renderer/ingress.rs`' PHASE-05 banner cited `plan.md` by line range, which
-is slice 004's (from `d45901b`), now its PHASE-05 sheet by name.
+is slice 004's (from `d45901b`), now its PHASE-05 sheet by name. Widened to every
+file the slice touched (`git diff --name-only c68a624 HEAD | grep -E
+'\.(rs|toml|md|sh)$' | grep -v '^docs/slices' | xargs grep -nE
+'\.(md|rs):[0-9]+'`, now empty), four more in `goad-shell` test comments,
+each checked against the file as it stood when the citation was written:
+`failure_matrix.rs`' VT-3 banner cited `host.rs:298` and `round_trip.rs:220`
+/ `:257` (from `30d834f`; the round-trip numbers were the parent's), now
+`host.rs::no_failure_moves_the_schedule`,
+`round_trip.rs::an_answer_no_view_asked_for_never_reaches_the_backend` and
+`::a_superseded_answer_never_reaches_the_backend`; `host.rs` —
+`a_body_that_is_not_exactly_one_json_document_is_a_protocol_failure` cited
+`design.md:1052` (slice 001's, from `aa40810`), now §5.2 *Transport*'s
+"`stdout` is `Vec<u8>`" bullet; `tests/integration/ingress.rs`' module doc
+cited `config.rs:226` (from `0ffedc8`), now
+`tests::a_configuration_is_read_from_a_file_and_a_missing_one_says_so`.
 
 **Outcome:**
 

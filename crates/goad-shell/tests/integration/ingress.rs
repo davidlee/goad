@@ -1,13 +1,15 @@
 //! The socket's lifecycle, the accepted path, the two read budgets and the
 //! closed refusal vocabulary — `plan.md` PHASE-03 and PHASE-08, split at the
 //! listener's own read/reply seam (`plan.md` PL-10). Every case here binds a
-//! real socket, in its own directory under `std::env::temp_dir()`
-//! (`config.rs:226`'s precedent — `tempfile` is not on the manifest
-//! allowlist), against a **fake judge**: a task that takes every `Arrival`
-//! the listener hands it and answers according to a script, recording what it
-//! saw. `serve` itself is untouched until PHASE-04; no *production* code here
-//! constructs `engaged` or `too_soon` — `Verdict::Refuse` lets a case script
-//! either, which is how PHASE-08's VT-9 drives them without `serve`.
+//! real socket, in its own directory under `std::env::temp_dir()` (the
+//! precedent is `config.rs`'s
+//! `tests::a_configuration_is_read_from_a_file_and_a_missing_one_says_so`;
+//! `tempfile` is not on the manifest allowlist), against a **fake judge**: a
+//! task that takes every `Arrival` the listener hands it and answers according
+//! to a script, recording what it saw. `serve` itself is untouched until
+//! PHASE-04; no *production* code here constructs `engaged` or `too_soon` —
+//! `Verdict::Refuse` lets a case script either, which is how PHASE-08's VT-9
+//! drives them without `serve`.
 
 use std::io::{BufRead as _, Write as _};
 use std::path::{Path, PathBuf};

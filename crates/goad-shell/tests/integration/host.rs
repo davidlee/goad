@@ -170,7 +170,8 @@ async fn a_body_that_is_not_exactly_one_json_document_is_a_protocol_failure() {
   // The bad byte sits in a value the host actually **reads** — a view's title.
   // Measured at expansion: a byte serde *skips* is never decoded, so
   // `{"a":"\xff"}` parses as a `WireResponse` and the third case would have
-  // asserted nothing. `design.md:1052` is about the case here — a title that
+  // asserted nothing. Slice 001's `design.md` §5.2 *Transport*, "`stdout` is
+  // `Vec<u8>`, not `String`", is about the case here — a title that
   // `String::from_utf8_lossy` would have silently turned into U+FFFD, which is
   // why `Exchange.result` carries `Vec<u8>`.
   let mut invalid_utf8 = A_CHOICE.to_vec();
