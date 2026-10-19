@@ -1,9 +1,9 @@
 //! The TOML the host is started with — `design.md` §5.2's Config block.
 //!
 //! Brief §5's three values, plus the event-ingress key slice 004 adds, parsed
-//! once at startup and immutable afterwards. There is no hot reload:
-//! `design.md:1236` makes a malformed or missing config fatal at construction,
-//! because there is no backend to run without one.
+//! once at startup and immutable afterwards. There is no hot reload: slice
+//! 001's `design.md` §5.4, *Startup*, makes a malformed or missing config fatal
+//! at construction, because there is no backend to run without one.
 //!
 //! No module-level `#![deny(clippy::arithmetic_side_effects)]` here. The lint
 //! follows the data, not the directory (D53 as amended), and a config file is

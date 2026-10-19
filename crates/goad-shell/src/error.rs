@@ -84,9 +84,10 @@ pub enum CleanupFailure {
 /// Separate from `BackendError` because the backend did nothing wrong, and it
 /// was not asked: `respond` checks the id against host state *before* touching
 /// the transport, so a stale answer never reaches a backend author's code
-/// (R-32, `design.md:1600`). Two variants rather than one because the
-/// diagnostics differ — "there is no interaction open" and "you answered the
-/// previous one" are different mistakes with different fixes (D24, F-8, F-15).
+/// (R-32; slice 001's `design.md` §5.4, the note after the `respond`
+/// sequence). Two variants rather than one because the diagnostics differ —
+/// "there is no interaction open" and "you answered the previous one" are
+/// different mistakes with different fixes (D24, F-8, F-15).
 ///
 /// It sits here and not in `semantics/` because staleness is a fact about host
 /// state, not about the message: the same bytes are valid or stale depending on
@@ -141,7 +142,8 @@ pub enum ConfigError {
   EmptyCommand,
   /// A duration that parsed but is zero or negative. A zero timeout fails every
   /// exchange and a zero poll is a busy loop, so neither is a configuration the
-  /// host can honour (`design.md:1744`).
+  /// host can honour (slice 001's `design.md` §5.5 *Edge cases*, the
+  /// `timeout = "0s"` row).
   NonPositive { key: &'static str },
   /// `ingress.path = ""`. An unusable value is not representable past this
   /// boundary, the same argument `EmptyCommand` rests on for the backend's

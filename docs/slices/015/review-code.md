@@ -556,7 +556,13 @@ diff: `git diff 3287846 -- crates/goad-shell/src/ | grep '^[-+]' | grep -vE
 '^(\+\+\+|---)' | grep -vE '^[-+][[:space:]]*//'` prints nothing.
 Line-number citations of moving files remain in files this slice did not
 touch (`canonical.rs`, `view_model.rs`, `lib.rs` in `goad`); not this
-slice's, not edited.
+slice's, not edited. Class sweep within the files this round touched
+(`grep -nE '\.(md|rs):[0-9]+'`): `config.rs`' module doc and `error.rs` —
+`StateError`'s doc and `ConfigError::NonPositive`'s cited slice 001's
+`design.md` by line (from `bc06d6d`), now §5.4 *Startup*, §5.4's note after
+the `respond` sequence, and §5.5 *Edge cases*' `timeout = "0s"` row; and
+`renderer/ingress.rs`' PHASE-05 banner cited `plan.md` by line range, which
+is slice 004's (from `d45901b`), now its PHASE-05 sheet by name.
 
 **Outcome:**
 

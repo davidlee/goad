@@ -1124,10 +1124,10 @@ async fn a_dead_accept_task_is_folded_once_parks_the_arm_and_leaves_the_host_eva
 // SPEC-003/R-15's bound, held from both sides; AC-12/R-16, the flood.
 // =============================================================================
 //
-// `plan.md:1493-1585` whole. Doc comments below say which alternative each
-// AC-6 case falsifies (EX-1) and, for every exchange a case lets complete,
-// what its `next_check` was pinned to and why (EX-5, restating PHASE-04/EX-11
-// over this file).
+// Slice 004's `plan.md` PHASE-05, whole. Doc comments below say which
+// alternative each AC-6 case falsifies (EX-1) and, for every exchange a case
+// lets complete, what its `next_check` was pinned to and why (EX-5, restating
+// PHASE-04/EX-11 over this file).
 
 /// PHASE-05's own short instruction. Defined here rather than reached for in
 /// `scheduling.rs` (`plan.md`'s implementer note: this module states its
