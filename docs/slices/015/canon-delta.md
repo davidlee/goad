@@ -11,6 +11,9 @@ Reconciliation table.
 any change returns to the person. Amended after code review round 1 — R-60's
 and R-17's join, and R-60's §7 row — in the person's words (`design-log.md`
 2026-10-19, *code review round 1 dispositions*; `review-code.md` F-1, F-3).
+Amended after code review round 2 — §6.4's relative `PATH` entry — in the
+person's words (`design-log.md` 2026-10-19, *code review round 2, residues,
+and canon promotion*; `review-code.md` F-13).
 
 **Promotion order: after slice 012, by preference, not as a gate.** R-60
 skips R-59, which 012's unpromoted delta holds. If 015 closes first, its audit
@@ -65,7 +68,7 @@ directory the person never typed (F-11).
 > path it was executed by, whatever the host passes as the first argument, so
 > no other name could be promised to a script and a native program alike. A
 > bare name is looked up on `PATH` after the change of directory, so a
-> relative entry in `PATH` names a directory under the backend's working
+> relative entry in `PATH` is resolved against the backend's working
 > directory; that is the environment's choice. A failure to start a
 > configured command names both the path and the directory, because neither
 > need be one the person typed.

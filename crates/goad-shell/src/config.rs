@@ -275,11 +275,11 @@ fn ingress_config(file: &FileIngress, directory: &Path) -> Result<IngressConfig,
 /// `path` joined onto `directory`: the one join, shared by the executable and
 /// the socket path.
 ///
-/// Each `.` component is dropped, so `./goad.sock` is
-/// `<directory>/goad.sock` and spends no bytes of a socket address's 107 on
-/// `/./`. `..` is kept: folding it lexically is wrong across links. An
-/// absolute `path` is returned as is. A path of `.` components only anchors
-/// to `directory` itself, with no trailing separator.
+/// Each `.` component is dropped, so `./goad.sock` is `<directory>/goad.sock`
+/// and spends no bytes of a socket address's 107 on `/./`. `..` is kept:
+/// folding it lexically is wrong across links. An absolute `path` is returned
+/// as is. A path of `.` components only anchors to `directory` itself, with
+/// no trailing separator.
 fn anchored(directory: &Path, path: &Path) -> PathBuf {
   if path.is_absolute() {
     return path.to_path_buf();
@@ -349,7 +349,7 @@ mod tests {
   /// directory. `parse` never touches the filesystem, so it need not exist.
   const ANCHOR: &str = "/anchor";
 
-  /// The design's own example, `design.md:1134`.
+  /// The design's own example: slice 001's `design.md` §5.2, *Config*.
   const GOOD: &str = r#"
 [backend]
 command = ["deno", "run", "-A", "./backend.ts"]

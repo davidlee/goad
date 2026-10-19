@@ -126,9 +126,9 @@ Lines of attack:
 | F-8 | nit | fix-now | verified |
 | F-9 | nit | fix-now | verified |
 | F-10 | nit | fix-now | verified |
-| F-11 | nit | | |
-| F-12 | nit | | |
-| F-13 | nit | | |
+| F-11 | nit | fix-now | |
+| F-12 | nit | fix-now | |
+| F-13 | nit | doc-wrong | |
 
 ### F-1 — R-60 and R-17 promise "the joined path", but the join drops `.` and no rule says so
 
@@ -537,8 +537,26 @@ added before the repairs, not the repairs' own.
 **Evidence:** `git diff 024643d c44ee07 -- crates tests | grep '^+' | awk
 'length > 86'` → the `ingress.rs` line.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*).
+**Response:** Reflowed: `renderer/ingress.rs` — `socket_path`'s doc;
+`startup.rs` — `listener::socket_path`'s doc; `scripting.rs` — `claim`'s doc.
+Class check over every doc line the slice's repairs wrote (`git diff -U1
+024643d -- '*.rs'`: an added `///` line under 60 columns followed by a
+non-blank `///` line, and added lines over 81 columns): one more,
+`config.rs` — `anchored`'s doc, written by F-1's repair, reflowed with the
+three (a doc comment, so the doc-only condition still holds). The same
+commit replaces three line-number citations with citations by section or
+symbol, as the person decided at this round: `error.rs` — `ConfigError`'s
+doc and `config.rs` — `tests::GOOD`'s doc cited `design.md` by line, which is
+slice 001's design (introduced in `bc06d6d`, *phase 001.11*); they now cite
+slice 001's `design.md` §5.4 *Startup* and §5.2 *Config*. goad-emit
+`exchange.rs` — `fake_listener`'s doc cited `tests/integration/ingress.rs`
+by line; it now names `goad-shell`'s `fake_listener` there. Doc-only, by
+diff: `git diff 3287846 -- crates/goad-shell/src/ | grep '^[-+]' | grep -vE
+'^(\+\+\+|---)' | grep -vE '^[-+][[:space:]]*//'` prints nothing.
+Line-number citations of moving files remain in files this slice did not
+touch (`canonical.rs`, `view_model.rs`, `lib.rs` in `goad`); not this
+slice's, not edited.
 
 **Outcome:**
 
@@ -558,8 +576,13 @@ reads true as history.)
 **Evidence:** `grep -n 'started in \`temp_dir()\`' docs/slices/015/audit.md`
 → the AC-5 row; `exchange.rs`: `emit_from(&start, &home, …)`.
 
-**Disposition:**
-**Response:**
+**Disposition:** fix-now — confirmed by the person (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*).
+**Response:** `audit.md` AC-5 row: the `goad-emit` case is now described as
+*"started in `<home>/start`, a directory the case owns and not the
+configuration's; no `--socket`"*, as `exchange.rs` —
+`a_relative_configured_socket_is_found_beside_the_configuration` does
+(`emit_from(&start, &home, …)`). *Leads for the code reviewer* is left as
+history, as the finding says.
 
 **Outcome:**
 
@@ -580,8 +603,13 @@ is the person's call.
 **Evidence:** the quoted §6.4 sentence; `running.md` *Name your command*
 after `c44ee07`.
 
-**Disposition:**
-**Response:**
+**Disposition:** doc-wrong — confirmed by the person, with the wording below (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*).
+**Response:** `canon-delta.md` SPEC-001 Change 2 (§6.4): *"a relative entry in `PATH`
+names a directory under the backend's working directory"* is now *"a
+relative entry in `PATH` is resolved against the backend's working
+directory"*, the person's words exactly. The **Status** line records the
+amendment. §6.4 does not restate R-60's `.`-dropping rule, by the person's
+decision.
 
 **Outcome:**
 

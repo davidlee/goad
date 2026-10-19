@@ -112,8 +112,9 @@ pub enum StateError {
 /// which is the argument `StateError` already rests on. User decision 2026-09-03;
 /// `plan-log.md`.
 ///
-/// Every variant is fatal at construction (`design.md:1236`): there is no backend
-/// to run without a config, and guessing a command is not available to us.
+/// Every variant is fatal at construction (slice 001's `design.md` §5.4,
+/// *Startup*): there is no backend to run without a config, and guessing a
+/// command is not available to us.
 #[derive(Debug)]
 pub enum ConfigError {
   /// The file could not be read: it is missing or unreadable, a link to

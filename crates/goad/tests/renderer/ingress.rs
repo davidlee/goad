@@ -131,12 +131,13 @@ const _: () = assert!(
 /// include it without failing the gate. `claim`'s own doc names each, held
 /// and unheld, and carries the grep that enumerates them, because naming the
 /// ones that look alike has come up short twice (`review-code.md` F-9, F-11,
-/// F-17, F-22). It matters more here than for a marker: two cases sharing a socket path share a
-/// **listener**, and `cleanup` below removes the lock file beside it, so the
-/// second case to start would unlink the first case's lock mid-run. Nothing
-/// collides today — but the names are drawn from the same well that produced
-/// the `"vt8"` collision these cases are numbered from, and `claim` is what
-/// makes "nothing collides today" checked rather than observed.
+/// F-17, F-22). It matters more here than for a marker: two cases sharing a
+/// socket path share a **listener**, and `cleanup` below removes the lock
+/// file beside it, so the second case to start would unlink the first case's
+/// lock mid-run. Nothing collides today — but the names are drawn from the
+/// same well that produced the `"vt8"` collision these cases are numbered
+/// from, and `claim` is what makes "nothing collides today" checked rather
+/// than observed.
 ///
 /// The kind is **this helper's alone**, which is what keeps the key exact: these
 /// paths are `goad-serve-…` and the other socket helpers' are `goad-startup-…`

@@ -818,10 +818,10 @@ mod listener {
 
   /// A path no other case will collide with, cleared before it is handed out —
   /// a helper of `claim`'s class, held by it as every such helper in this test
-  /// binary is (`review-code.md` F-11). The stake is the
-  /// same one `ingress.rs` names: two cases sharing a name share a listener,
-  /// and `cleanup` below unlinks the lock file beside the socket, so the
-  /// second case to start would clear the first's mid-run.
+  /// binary is (`review-code.md` F-11). The stake is the same one `ingress.rs`
+  /// names: two cases sharing a name share a listener, and `cleanup` below
+  /// unlinks the lock file beside the socket, so the second case to start
+  /// would clear the first's mid-run.
   ///
   /// The kind is **this helper's alone**, which is what keeps the key exact.
   /// These paths are `goad-startup-…` and `ingress.rs`'s are `goad-serve-…`, so

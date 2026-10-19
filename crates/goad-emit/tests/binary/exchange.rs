@@ -37,9 +37,9 @@ fn cleanup(path: &Path) {
 }
 
 /// One connection, one line read, one canned reply, then close — the shape
-/// `tests/integration/ingress.rs:1296` uses one tier up. Bound *before* the
-/// thread is spawned, so the socket exists by the time this returns and the
-/// client cannot lose a race with it.
+/// `goad-shell`'s `tests/integration/ingress.rs` `fake_listener` uses one tier
+/// up. Bound *before* the thread is spawned, so the socket exists by the time
+/// this returns and the client cannot lose a race with it.
 ///
 /// The handle yields the line the client sent, which is VT-4's subject.
 fn fake_listener(path: &Path, reply: &'static str) -> JoinHandle<String> {
