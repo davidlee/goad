@@ -67,7 +67,7 @@ new defects repairing old ones.
 ## Brief
 
 **Round 1** — 2026-10-19 — the whole plan, against the design and the tree.
-Bounded: at most two rounds (`design-log.md`; the person asked for a look
+Bounded: at most two rounds (`plan-log.md` 2026-10-19; the person asked for a look
 over).
 
 Written by the orchestrator before the review. Surfaces to attack:
