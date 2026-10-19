@@ -9,6 +9,7 @@
 //! which computes over lengths a backend chose, carries one.
 
 use std::fmt;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use goad_semantics::error::{AtFault, ProtocolError, Requirement, SpanFault};
@@ -23,7 +24,16 @@ use goad_semantics::protocol::canonical::ViewId;
 pub enum BackendError {
   /// The command could not be started — nothing was spawned, so there is
   /// nothing to have cleaned up after.
-  Spawn(std::io::Error),
+  ///
+  /// `executable` is the path the host executed and `working_directory` the
+  /// directory it ran in: once a program is looked for beside its
+  /// configuration, the error alone does not say where that was. `None` is a
+  /// command with no file, which runs where its caller runs (SPEC-001/R-60).
+  Spawn {
+    executable: PathBuf,
+    working_directory: Option<PathBuf>,
+    source: std::io::Error,
+  },
   /// The backend did not complete an exchange within its configured window.
   /// `after` is that window, not the elapsed time: disposal is bounded
   /// separately and a call waits at most the sum (R-41).
@@ -143,7 +153,7 @@ impl BackendError {
   #[must_use]
   pub fn requirement(&self) -> Requirement {
     match self {
-      Self::Spawn(_) => Requirement::R44,
+      Self::Spawn { .. } => Requirement::R44,
       Self::Timeout { .. } => Requirement::R41,
       Self::ExitStatus { .. } => Requirement::R40,
       Self::OutputTooLarge { .. } => Requirement::R43,
@@ -156,7 +166,7 @@ impl BackendError {
   #[must_use]
   pub fn fault(&self) -> AtFault {
     match self {
-      Self::Spawn(_) => AtFault::Configuration,
+      Self::Spawn { .. } => AtFault::Configuration,
       Self::Timeout { .. } | Self::ExitStatus { .. } | Self::OutputTooLarge { .. } => {
         AtFault::Backend
       }
@@ -263,7 +273,17 @@ impl std::error::Error for ConfigError {
 impl fmt::Display for BackendError {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Spawn(inner) => write!(f, "backend could not be spawned: {inner}"),
+      Self::Spawn {
+        executable,
+        working_directory,
+        source,
+      } => {
+        write!(f, "backend could not be spawned: {}", executable.display())?;
+        if let Some(directory) = working_directory {
+          write!(f, " (in {})", directory.display())?;
+        }
+        write!(f, ": {source}")
+      }
       Self::Timeout { after } => {
         write!(f, "backend did not respond within {}ms", after.as_millis())
       }
@@ -297,7 +317,7 @@ impl fmt::Display for CleanupFailure {
 impl std::error::Error for BackendError {
   fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
     match self {
-      Self::Spawn(inner) | Self::Io(inner) => Some(inner),
+      Self::Spawn { source: inner, .. } | Self::Io(inner) => Some(inner),
       Self::Protocol(inner) => Some(inner),
       Self::Timeout { .. }
       | Self::ExitStatus { .. }
@@ -318,6 +338,7 @@ impl std::error::Error for CleanupFailure {
 
 #[cfg(test)]
 mod tests {
+  use std::path::PathBuf;
   use std::time::Duration;
 
   use goad_semantics::error::{AtFault, ProtocolError};
@@ -331,7 +352,7 @@ mod tests {
   /// delegates: its row is whatever the wrapped error answers.
   fn backend_row(error: &BackendError) -> (String, AtFault) {
     match error {
-      BackendError::Spawn(_) => ("R-44".to_owned(), AtFault::Configuration),
+      BackendError::Spawn { .. } => ("R-44".to_owned(), AtFault::Configuration),
       BackendError::Timeout { .. } => ("R-41".to_owned(), AtFault::Backend),
       BackendError::ExitStatus { .. } => ("R-40".to_owned(), AtFault::Backend),
       BackendError::OutputTooLarge { .. } => ("R-43".to_owned(), AtFault::Backend),
@@ -365,7 +386,11 @@ mod tests {
   /// whose answers differ, so the delegation is seen to follow the inner one.
   fn every_backend_error() -> Vec<BackendError> {
     vec![
-      BackendError::Spawn(io_error()),
+      BackendError::Spawn {
+        executable: PathBuf::from("/anchor/backend.sh"),
+        working_directory: Some(PathBuf::from("/anchor")),
+        source: io_error(),
+      },
       BackendError::Timeout {
         after: Duration::from_secs(5),
       },
@@ -433,5 +458,22 @@ mod tests {
         "`{error}` disagrees with its row"
       );
     }
+  }
+
+  /// The argv form's shape: a command with no file runs where its caller
+  /// runs, so its report names the executable and claims no directory
+  /// (`design.md` §5.2, **Errors**).
+  #[test]
+  fn a_spawn_failure_with_no_working_directory_names_only_the_executable() {
+    let error = BackendError::Spawn {
+      executable: PathBuf::from("./backend.sh"),
+      working_directory: None,
+      source: io_error(),
+    };
+
+    assert_eq!(
+      error.to_string(),
+      "backend could not be spawned: ./backend.sh: refused"
+    );
   }
 }

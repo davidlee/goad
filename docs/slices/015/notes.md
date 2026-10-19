@@ -9,7 +9,7 @@ after the slice closes is lifted into the Harvest section.
 | phase | state | as of |
 |-------|-------|-------|
 | PHASE-01 | done | 2026-10-19 |
-| PHASE-02 | pending | 2026-10-19 |
+| PHASE-02 | in progress | 2026-10-19 |
 | PHASE-03 | pending | 2026-10-19 |
 | PHASE-04 | pending | 2026-10-19 |
 
@@ -478,16 +478,17 @@ VA-1. Names are commitments (`design.md` §9); a rename goes in *Renames*.
 13. Cite by symbol, never line number; name, never count.
 
 **Tasks**
-- [ ] Print `git log -1 --oneline`; record it. §Status PHASE-02 `in progress`.
-- [ ] `Spawn` new shape through `error.rs` + every site; `process.rs` fills
+- [x] Print `git log -1 --oneline`; record it. §Status PHASE-02 `in progress`.
+      (`fe81391 015: PHASE-01 re-measured; PHASE-02 sheet`.)
+- [x] `Spawn` new shape through `error.rs` + every site; `process.rs` fills
       program-as-written / `None`; gate compiles.
-- [ ] VT-1..VT-6 written; VT-7 (D10 test side, `rooted_at_the_workspace`
+- [x] VT-1..VT-6 written; VT-7 (D10 test side, `rooted_at_the_workspace`
       deleted) and VT-8 (`run_checker` from the root) changed; red runs
       recorded.
-- [ ] EX-1 in `exchange`; VT-1..VT-6 green.  ← PARTIAL checkpoint if needed
-- [ ] D10's README; VT-7 green. VT-8 green; test docs true (EX-5).
-- [ ] VT-9, VT-10 (each seen red as the plan says).
-- [ ] Refactor step.
+- [x] EX-1 in `exchange`; VT-1..VT-6 green.  ← PARTIAL checkpoint if needed
+- [x] D10's README; VT-7 green. VT-8 green; test docs true (EX-5).
+- [x] VT-9, VT-10 (each seen red as the plan says).
+- [x] Refactor step.
 - [ ] M3 (02 half), M6–M10, M13, M14 recorded; `git status` clean after each.
 - [ ] VA-1 recorded.
 - [ ] `just check` exits 0; §Status PHASE-02 `done`; §Harvest; commit.
@@ -496,15 +497,15 @@ VA-1. Names are commitments (`design.md` §9); a rename goes in *Renames*.
 
 | case | command | failed on (assertion, and why it matches §9) |
 |---|---|---|
-| VT-1 `a_relative_argument_resolves_beside_the_config_from_another_directory` | | |
-| VT-2 `a_linked_config_runs_its_backend_beside_the_target` | | |
-| VT-3 `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` | | |
-| VT-4 `a_native_program_receives_its_anchored_path_as_its_name` | | |
-| VT-5 `the_backend_s_pwd_names_its_working_directory` | | |
-| VT-6 `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | | |
-| VT-7 `the_readme_s_own_config_loads_and_runs_the_example` | | |
-| VT-8 `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | | |
-| VT-9 `a_spawn_failure_with_no_working_directory_names_only_the_executable` (red against a `Display` printing the parenthesis always) | | |
+| VT-1 `a_relative_argument_resolves_beside_the_config_from_another_directory` | `cargo test -p goad-shell --test integration --no-fail-fast -- working_directory::` | `answered`'s *the backend must answer*: `backend exited with status 127` — bash could not open `backend.sh` in the crate dir (§9) |
+| VT-2 `a_linked_config_runs_its_backend_beside_the_target` | same | *the backend must answer*: `backend exited with status 127` — old rule, nothing in the crate dir (§9's first clause; the decoy clause is M3's) |
+| VT-3 `a_relative_program_with_a_slash_is_executed_as_the_anchored_path` | same | *the backend must answer*: `backend could not be spawned: ./backend.sh: No such file or directory` — spawn `NotFound` (§9) |
+| VT-4 `a_native_program_receives_its_anchored_path_as_its_name` | same | *the backend must answer*: `backend could not be spawned: ./shell: No such file or directory` — spawn `NotFound` (§9) |
+| VT-5 `the_backend_s_pwd_names_its_working_directory` | same | the `PWD` assertion: left `/home/david/dev/goad/.claude/worktrees/slice-015` (inherited), right `/tmp/goad-wd-pwd-<pid>.d` — the backend ran and answered; `PWD` inherited from the test process (§9), not a spawn failure |
+| VT-6 `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for` | same, with the new `Spawn` shape and `process.rs` filling the program as written / `None` | the `executable` assertion: left `./missing.sh`, right `/tmp/goad-wd-missing-<pid>.d/missing.sh` — `Spawn` carried neither path (§9) |
+| VT-7 `the_readme_s_own_config_loads_and_runs_the_example` | `cargo test -p goad-shell --test integration --no-fail-fast -- round_trip::the_readme` (README and case rewritten, `rooted_at_the_workspace` deleted, spawn unchanged) | `quiet.failure.is_none()`: `backend exited with status 1` — deno could not find `backend.ts` in the crate dir |
+| VT-8 `each_shipped_example_is_accepted_by_the_checker`, `downloads_triage_moves_the_file_it_was_asked_about` | `cargo test -p goad-check --test kit --no-fail-fast -- examples::` (checker started in the root, spawn unchanged) | accepted: `examples not accepted` — breadcrumbs, downloads-triage, focus-check each `exit 1`, breadcrumbs' stderr `Module not found "file:///tmp/goad-kit-accepted-breadcrumbs-<pid>/backend.ts"`; triage: `code_of` left 1, right 0 — each backend is not in the root (§9) |
+| VT-9 `a_spawn_failure_with_no_working_directory_names_only_the_executable` (red against a `Display` printing the parenthesis always) | `cargo test -p goad-shell --lib --no-fail-fast -- error::tests`, with `Display` writing ` (in {})` over `working_directory` or an empty path, then restored | `assert_eq!` on `to_string()`: left `backend could not be spawned: ./backend.sh (in ): refused`, right `… ./backend.sh: refused` |
 
 **Mutation evidence** — `--no-fail-fast`; scratchpad copy, edit, run, copy
 back; `git status` clean after each. Not compiled = not evidence.
@@ -524,6 +525,38 @@ back; `git status` clean after each. Not compiled = not evidence.
 - VT-9 is an addition (not in §9): `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable`.
 
 **Decisions taken during execution**
+- *VT-9 asserts the whole `Display`* (`backend could not be spawned:
+  ./backend.sh: refused`), which holds both halves of the plan's wording —
+  names the executable, contains no `(in ` — in one equality.
+- *Each spawn case logs to a file inside its own `directory`*, passed as an
+  argument (the `logging_backend` form), not to a `marker`: the directory is
+  already claimed, so no second kind is minted, and one `remove_dir_all`
+  clears the case.
+- *The case-written backend* (`working_directory.rs::logging_script`) is one
+  `#!/bin/sh` script with the executable bit, so the same file serves
+  `["bash", "backend.sh", log]` (VT-1, VT-2 and its decoy) and
+  `["./backend.sh", log]` (VT-3). It logs `pwd -P` then `$0`.
+- *Command arguments are quoted by `toml::Value`'s `Display`*
+  (`working_directory.rs::configuration`) — `toml` is already a `goad-shell`
+  dependency, so no escaping of our own and no new dependency.
+- *VT-5's answer is `{"view": null}`* (`json.dumps`' spacing); the case
+  asserts it, so the body is seen to come from the python backend.
+- *VT-7's anchor is `CARGO_MANIFEST_DIR/../../exercisers/typescript` as
+  given*, not canonicalized: the tier's own rooting rule (`harness.rs::example`,
+  `shell_example`), and `parse` takes the directory as given (I-1 is
+  `load`'s).
+- *`exchange`'s order*: `Command::new(&executable)`, then the
+  working-directory block, then the existing `args`/stdio chain. Same
+  substance as `design.md` §5.2's snippet; keeps the chain unbroken.
+  `executable` moves into `Spawn` on failure (no clone).
+- *Comments in `process.rs` cite "slice 015's D5 / D12"*: the file already
+  cites slice 001's D-ids (D34, D44, D48, D53), so a bare `D5` would be
+  ambiguous there. Code and test docs cite `SPEC-001/R-60`, which is in
+  `canon-delta.md` and promoted at audit.
+- *Directory-less `Spawn` values* in `table.rs` and `coverage.rs`
+  (`executable: "no-such-program"`, `working_directory: None`); `error.rs`'s
+  `every_backend_error` carries a configured shape (`/anchor/backend.sh` in
+  `/anchor`), so both shapes are in that file's tests.
 
 **Findings**
 

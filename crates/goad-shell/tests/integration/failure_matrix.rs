@@ -423,7 +423,7 @@ async fn a_command_that_cannot_be_spawned_reaches_the_caller_as_a_spawn_failure(
   let outcome = host.evaluate(now(), quiet_event(now())).await;
 
   assert!(
-    matches!(backend_error(&outcome), BackendError::Spawn(_)),
+    matches!(backend_error(&outcome), BackendError::Spawn { .. }),
     "{}",
     describe_outcome(&outcome)
   );
