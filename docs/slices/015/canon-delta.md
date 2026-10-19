@@ -14,6 +14,11 @@ and R-17's join, and R-60's §7 row — in the person's words (`design-log.md`
 Amended after code review round 2 — §6.4's relative `PATH` entry — in the
 person's words (`design-log.md` 2026-10-19, *code review round 2, residues,
 and canon promotion*; `review-code.md` F-13).
+**Promoted** at audit, with the person's endorsement (`design-log.md`
+2026-10-19, *code review round 2, residues, and canon promotion*): every
+change below is applied to SPEC-001 and SPEC-003 as stated, and recorded in
+`audit.md`'s Reconciliation table. This file is now a record of the change,
+not an authority.
 
 **Promotion order: after slice 012, by preference, not as a gate.** R-60
 skips R-59, which 012's unpromoted delta holds. If 015 closes first, its audit

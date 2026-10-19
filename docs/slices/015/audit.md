@@ -88,6 +88,9 @@ where it rests on a phase sheet instead, it says so.
 - `crates/goad-semantics` is untouched by the range; the `justfile`'s `check`
   recipe is untouched (only `emit` and the `package` comment changed), so
   POL-001's sequence is unchanged.
+- **After code review round 2** (`90013b3`, the repairs; then the promotion
+  commit): `just check` exit 0 on each tree, run by the repairer. The
+  promotion touches documents only.
 - `main` is still at `c68a624`: nothing has landed there since the plan, so the
   worktree needs no `git merge main` before the merge yet.
 
@@ -97,9 +100,9 @@ where it rests on a phase sheet instead, it says so.
 |---|---|---|
 | AC-1 — relative `command` works from another directory, through a link | **met** | `Config::load` canonicalizes and anchors; `ProcessBackend::exchange` runs `Command::executable()` with `current_dir` and `PWD`. Held by `working_directory.rs`: `a_relative_argument_resolves_beside_the_config_from_another_directory` (`pwd -P` canonical, `$0` as written), `a_linked_config_runs_its_backend_beside_the_target` (a compiled, answering decoy beside the link), `a_relative_program_with_a_slash_is_executed_as_the_anchored_path`, `a_native_program_receives_its_anchored_path_as_its_name`, `the_backend_s_pwd_names_its_working_directory`, `a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for`, `a_config_reached_through_a_linked_directory_is_anchored_at_the_target`; `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash`; `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`. Through a link by a person: PHASE-04 *VH-1* step 2. `goad`'s own `main.rs::start` is held by review and AC-4 only (D11, a stated residue) |
 | AC-2 — `goad-check --config` behaves the same | **met** | `examples.rs::run_checker` starts the checker in the hand-out root with `--config example/config.toml`; `each_shipped_example_is_accepted_by_the_checker` and `downloads_triage_moves_the_file_it_was_asked_about` green, and M6 reds them. Argv form from the caller's directory: `run.rs::the_argv_form_runs_a_relative_program_from_the_caller_s_directory` (M12 re-run below). `checking.md` states both forms |
-| AC-3 — SPEC-001 states the rule with a §Verification row; the kit drops *make every path absolute* | **half met** | Kit half met: `running.md` *Name your command* and its `ingress.path` row, `checking.md`, `events.md`, each example's `config.toml` comment and README. The auditor's re-run of PHASE-03's VA-1 grep over `kit/` finds no hit advising an absolute path, or a start directory, to work around where goad started; the one *absolute path* advice left is the socket-length remedy (D8), and `chpwd.zsh`'s is about `goad-emit`'s own directory (PHASE-03 VA-2). Each README's `goad:config` fence is byte-identical to its `config.toml` (re-diffed). **Canon half pending**: SPEC-001 R-60 / §6.4 / §7 and SPEC-003 R-17 / §6.1 / §7 / §9 are drafted in `canon-delta.md` and unpromoted; see Reconciliation |
-| AC-4 — a person ran goad with a relative-path config from another directory and saw a view | **met** | `notes.md` PHASE-04 *VH-1*: run by the person 2026-10-19 on the worktree's build at `bdc93f2`, in the dev shell. From `/tmp`, goad on `<worktree>/exercisers/demo.toml` by absolute path showed a view; from `/tmp`, through `/tmp/goad-015-demo.toml → <worktree>/exercisers/demo.toml`, a view; the person: *"yeah that was all expected results"*. The code is unchanged from `bdc93f2` to `53d140a` (`53d140a` touches `notes.md` only). **If a code-review repair touches `goad_shell::config`, `backend::process` or `BackendError::Spawn`, VH-1 is run again on the repaired build and recorded here instead (`plan.md` §Owed)**. Code review round 1's repairs touch `config.rs` and `error.rs` in doc comments only; the person waived the re-run on that condition (`design-log.md` 2026-10-19, *code review round 1 dispositions*). Recorded by diff: `git diff 024643d -- crates/goad-shell/src/ \| grep '^[-+]' \| grep -vE '^(\+\+\+\|---)' \| grep -vE '^[-+][[:space:]]*//'` prints nothing (`review-code.md` F-2's Response) |
-| AC-5 — a relative `ingress.path` names one socket for goad and `goad-emit` | **met** | `config.rs::tests::a_relative_path_resolves_against_the_directory_given` (byte-exact, `OsStr`); `startup.rs::listener::a_relative_configured_path_binds_beside_the_config` (socket at the canonical config directory, none in the crate directory); `goad-emit`'s `exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration` (started in `<home>/start`, a directory the case owns and not the configuration's; no `--socket`) and `main.rs::tests::a_configured_ingress_path_is_what_is_written_to`. By a person: VH-1 step 3, `just emit reddit-watcher reddit-opened` from the worktree root replaced the step-2 host's view, and step 4 found `exercisers/goad-demo.sock` and its lock with none at the root |
+| AC-3 — SPEC-001 states the rule with a §Verification row; the kit drops *make every path absolute* | **met** | Kit half met: `running.md` *Name your command* and its `ingress.path` row, `checking.md`, `events.md`, each example's `config.toml` comment and README. The auditor's re-run of PHASE-03's VA-1 grep over `kit/` finds no hit advising an absolute path, or a start directory, to work around where goad started; the one *absolute path* advice left is the socket-length remedy (D8), and `chpwd.zsh`'s is about `goad-emit`'s own directory (PHASE-03 VA-2). Each README's `goad:config` fence is byte-identical to its `config.toml` (re-diffed). **Canon half met** by promotion: SPEC-001 R-60 (§4 *Process transport*, with its §7 row) and §6.4 *Where the backend runs*; SPEC-003 R-17 (§4, with its §7 row), §6.1 and §9; see Reconciliation |
+| AC-4 — a person ran goad with a relative-path config from another directory and saw a view | **met** | `notes.md` PHASE-04 *VH-1*: run by the person 2026-10-19 on the worktree's build at `bdc93f2`, in the dev shell. From `/tmp`, goad on `<worktree>/exercisers/demo.toml` by absolute path showed a view; from `/tmp`, through `/tmp/goad-015-demo.toml → <worktree>/exercisers/demo.toml`, a view; the person: *"yeah that was all expected results"*. The code is unchanged from `bdc93f2` to `53d140a` (`53d140a` touches `notes.md` only). **If a code-review repair touches `goad_shell::config`, `backend::process` or `BackendError::Spawn`, VH-1 is run again on the repaired build and recorded here instead (`plan.md` §Owed)**. Code review round 1's repairs touch `config.rs` and `error.rs` in doc comments only; the person waived the re-run on that condition (`design-log.md` 2026-10-19, *code review round 1 dispositions*). Recorded by diff: `git diff 024643d -- crates/goad-shell/src/ \| grep '^[-+]' \| grep -vE '^(\+\+\+\|---)' \| grep -vE '^[-+][[:space:]]*//'` prints nothing (`review-code.md` F-2's Response). Code review round 2's repairs (`review-code.md` F-11) are doc comments only too, and the condition is now checked against VH-1's own build: `git diff --name-only bdc93f2 -- 'crates/*/src/*'` lists only `goad-shell`'s `config.rs` and `error.rs`, and `git diff bdc93f2 -- 'crates/*/src/*' \| grep '^[-+]' \| grep -vE '^(\+\+\+\|---)' \| grep -vE '^[-+][[:space:]]*//'` prints nothing. No production line has changed since the build the person ran, so VH-1 at `bdc93f2` stands for the shipped code |
+| AC-5 — a relative `ingress.path` names one socket for goad and `goad-emit` | **met** | `config.rs::tests::a_relative_path_resolves_against_the_directory_given` (byte-exact, `OsStr`); `startup.rs::listener::a_relative_configured_path_binds_beside_the_config` (socket at the canonical config directory, none in the crate directory); `goad-emit`'s `exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration` (started in `<home>/start`, a directory the case owns and not the configuration's; no `--socket`) and `main.rs::tests::a_configured_ingress_path_is_what_is_written_to`. By a person: VH-1 step 3, `just emit reddit-watcher reddit-opened` from the worktree root replaced the step-2 host's view, and step 4 found `exercisers/goad-demo.sock` and its lock with none at the root. VH-1 ran at `bdc93f2`; production source has changed since only in comment lines (AC-4's check) |
 
 ### Verification criteria
 
@@ -196,10 +199,13 @@ Findings live in `review-code.md`, copied from
 `docs/templates/review-ledger.md` — same ledger, same severity and disposition
 vocabulary, subject `implementation`. Do not restate findings here.
 
-- **Ledger:** `review-code.md` — *not yet written; a fresh reviewer writes it
-  after this evidence pass. Leads for that reviewer are at the foot of this
-  file.*
-- **State:** open | resolved · outstanding blockers: none | <ids>
+- **Ledger:** `review-code.md`, subject `implementation`. Two rounds, each by
+  a fresh reviewer; the leads at the foot of this file seeded the first.
+  Rounds stopped on the measured trend — two rounds, no code defect — in
+  favour of mechanical verification (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*).
+- **State:** resolved · outstanding blockers: none. F-11, F-12 and F-13 are
+  repaired and their Outcomes are pending mechanical verification by the
+  orchestrator.
 
 ## Verdict
 
@@ -207,30 +213,59 @@ vocabulary, subject `implementation`. Do not restate findings here.
      synthesis and on the evidence above; restates neither. Does this slice do
      what it set out to do, and what is being accepted knowingly? -->
 
+The slice does what it set out to do. A configuration whose `command` and
+`[ingress] path` are relative now means the same thing however goad,
+`goad-check --config` and `goad-emit` are started, and through a link to the
+file or to a directory above it: the backend runs in the configuration's
+canonical directory, a relative program is executed by its joined path, and
+the socket is bound beside the file. The rule is canon — SPEC-001/R-60 and
+SPEC-003/R-17 — and each clause is held by a case that is red under the spawn
+it replaced, or by a pin that says it is one. A person ran it (VH-1). Code
+review found no behavioural defect; what it found was the record saying more,
+less, or something staler than the code, and that is repaired.
+
+Accepted knowingly:
+
+- **No re-run of VH-1 after the repairs.** The person waived it on condition
+  that every repair to production source is a comment; *Evidence* (AC-4)
+  records that condition by diff against VH-1's own build.
+- **`goad`'s `main.rs::start` is held by review and VH-1, not a test** (D11).
+- **A configuration named by a descriptor that is not a file** — a pipe, a
+  socket, a process substitution — is refused rather than anchored (D4).
+  `design.md` names more cases than are refused, and is left as written
+  (*Design drift not reconciled*).
+- **A relative socket path in a deep directory can exceed a socket address.**
+  That is R-4's failure to bind, and SPEC-003 §6.1 states the remedy.
+- **SPEC-001 carries R-60 with no R-59** until slice 012's audit promotes it;
+  012's plan owes the design-drift row for this slice's rule change.
+- **R-60's §7 row does not cite the `PWD` case or VT-9, and the kit does not
+  cite R-60 or R-17** — the person's decisions (*Reconciliation*).
+
 ## Reconciliation
 
 <!-- Making the record true. One row per document that must change, and the
      change itself. Amending canon requires explicit user endorsement — ask
      before writing, not after. -->
 
-Drafted by the auditor; **nothing here is applied**. Each canon row waits on
-the person's explicit endorsement. `canon-delta.md`'s wording was endorsed
-before design review (its **Status** line); promotion is a separate
-endorsement and is still owed.
+Drafted by the auditor. `canon-delta.md`'s wording was endorsed before
+design review (its **Status** line) and amended after each code review round
+in the person's words; promotion was endorsed separately (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*) and is
+applied. Each canon row below is applied as `canon-delta.md` states it,
+carrying the F-1, F-3 and F-13 amendments, in evergreen form.
 
 | document | change | reason | done |
 |----------|--------|--------|------|
-| `specs/001-host-backend-protocol.md` §4 *Process transport* | **Change 1** — add R-60 after R-36, as `canon-delta.md` states it. Amended after code review round 1 (`review-code.md` F-1): the join now states *each `.` component dropped and each `..` kept as written*, in the person's words | R-36 says nothing about where a command runs; the code now runs it in the config file's canonical directory (`Config::load`, `ProcessBackend::exchange`). Code is right; canon is silent. R-60 skips R-59 (slice 012's unpromoted id); 012's plan holds the hand-off row (`docs/slices/012/plan.md` §Owed, *Record slice 015's rule change as design drift*) | [ ] pending the person's endorsement |
-| `specs/001-…` §6.4 *Process transport* | **Change 2** — the *Where the backend runs* paragraph after the first | §6.4's prose carries each transport rule's reason | [ ] pending |
-| `specs/001-…` §7 | **Change 3** — R-60's row after R-36's. Amended after code review round 1 (`review-code.md` F-3): the directory-link sentence now says a link *leaves the kernel's working directory the same either way*, and the loaded value is what `PWD`, a relative program's name and the socket path are taken from, in the person's words | every requirement names its tests. Each citation resolves (below) | [ ] pending |
-| `specs/003-host-event-ingress.md` §4 | **Change 1** — add R-17 after R-16 (R-17 is SPEC-003's next free id; SPEC-001's own R-17 is a different document's). Amended after code review round 1 (`review-code.md` F-1): R-17 now joins as R-60 does, each `.` dropped and each `..` kept, in the person's words | `ingress_config` anchors `ingress.path` at the config's directory; §6.1 is silent on what a relative path means | [ ] pending |
-| `specs/003-…` §6.1 | **Change 2** — replace the paragraph's first sentence with the delta's text (it keeps that sentence and extends it) | the rule and the 107-byte limit beside the path's description | [ ] pending |
-| `specs/003-…` §7 | **Change 3** — R-17's row after R-16's | as Change 3 above. Each citation resolves | [ ] pending |
-| `specs/003-…` §9 | **Change 4** — append R-60 to the SPEC-001 bullet | R-17 leans on R-60's directory | [ ] pending |
-| `canon-delta.md` §7 citations (both rows) | **no re-point needed** — verified by the auditor: every cited `fn` exists in the file the row names. SPEC-001 R-60: `working_directory.rs::{a_relative_argument_resolves_beside_the_config_from_another_directory, a_linked_config_runs_its_backend_beside_the_target, a_relative_program_with_a_slash_is_executed_as_the_anchored_path, a_native_program_receives_its_anchored_path_as_its_name, a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for, a_config_reached_through_a_linked_directory_is_anchored_at_the_target}`, `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`, `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash`, `examples.rs::each_shipped_example_is_accepted_by_the_checker`. SPEC-003 R-17: `startup.rs::listener::a_relative_configured_path_binds_beside_the_config`, `config.rs::tests::a_relative_path_resolves_against_the_directory_given`, `ingress.rs::a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path`. No phase recorded a rename | `canon-delta.md` preamble: names are `design.md` §9's until audit | [ ] confirm at promotion |
-| `canon-delta.md` §7, R-60 row — cases not cited | **decision for the person**: whether R-60's row should also cite `working_directory.rs::the_backend_s_pwd_names_its_working_directory` and `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` (VT-9, an addition to §9). Auditor's recommendation: **no** — `PWD` is design, not canon (D12), and VT-9 is the argv form, which R-60 does not govern | completeness of the row against what shipped | [ ] person |
-| `kit/skills/goad-backend/reference/running.md`, `events.md` | **decision for the person** (`plan.md` §Owed): once R-60 / R-17 are promoted, cite them in the kit? Today the rule is in prose under the existing `SPEC-001/R-36` heading and the config table; a new `### SPEC-…` heading would change `coverage.rs`' heading set | the kit cites no draft id (PHASE-03 Notes); after promotion the ids exist | [ ] person |
-| code and repository comments citing `SPEC-001/R-60` / `SPEC-003/R-17` | **becomes true on promotion; no edit**. Cited ahead of promotion in `process.rs` (`ProcessBackend::exchange`), `error.rs` (`BackendError::Spawn`'s doc), `working_directory.rs`' module doc, `round_trip.rs` (`the_readme_s_own_config_loads_and_runs_the_example`'s doc), `examples.rs`' module doc, `exercisers/demo.toml`, `.gitignore`. If promotion is declined, each is a citation of nothing and must change before the merge | `docs/AGENTS.md`: nothing outside the slice cites a draft. These are on `slice-015`, which reaches `main` only in the merge that carries the promotion (`plan.md` §Branch and worktree) | [ ] verify at merge |
+| `specs/001-host-backend-protocol.md` §4 *Process transport* | **Change 1** — add R-60 after R-36, as `canon-delta.md` states it. Amended after code review round 1 (`review-code.md` F-1): the join now states *each `.` component dropped and each `..` kept as written*, in the person's words | R-36 says nothing about where a command runs; the code now runs it in the config file's canonical directory (`Config::load`, `ProcessBackend::exchange`). Code is right; canon is silent. R-60 skips R-59 (slice 012's unpromoted id); 012's plan holds the hand-off row (`docs/slices/012/plan.md` §Owed, *Record slice 015's rule change as design drift*) | [x] applied: R-60 in §4 *Process transport*, the row after R-36's, verbatim. No R-59: SPEC-001 has no convention for marking an unassigned id, so none is marked |
+| `specs/001-…` §6.4 *Process transport* | **Change 2** — the *Where the backend runs* paragraph after the first | §6.4's prose carries each transport rule's reason | [x] applied after §6.4's first paragraph, verbatim, with F-13's *is resolved against the backend's working directory* |
+| `specs/001-…` §7 | **Change 3** — R-60's row after R-36's. Amended after code review round 1 (`review-code.md` F-3): the directory-link sentence now says a link *leaves the kernel's working directory the same either way*, and the loaded value is what `PWD`, a relative program's name and the socket path are taken from, in the person's words | every requirement names its tests. Each citation resolves (below) | [x] applied after R-36's §7 row, verbatim |
+| `specs/003-host-event-ingress.md` §4 | **Change 1** — add R-17 after R-16 (R-17 is SPEC-003's next free id; SPEC-001's own R-17 is a different document's). Amended after code review round 1 (`review-code.md` F-1): R-17 now joins as R-60 does, each `.` dropped and each `..` kept, in the person's words | `ingress_config` anchors `ingress.path` at the config's directory; §6.1 is silent on what a relative path means | [x] applied after R-16, verbatim |
+| `specs/003-…` §6.1 | **Change 2** — replace the paragraph's first sentence with the delta's text (it keeps that sentence and extends it) | the rule and the 107-byte limit beside the path's description | [x] applied: the delta's text replaces the first sentence, and the rest of the paragraph (*The mode is owner-only…*) follows it unchanged in wording, reflowed into the one paragraph |
+| `specs/003-…` §7 | **Change 3** — R-17's row after R-16's | as Change 3 above. Each citation resolves | [x] applied after R-16's §7 row, verbatim |
+| `specs/003-…` §9 | **Change 4** — append R-60 to the SPEC-001 bullet | R-17 leans on R-60's directory | [x] applied: the bullet's closing full stop becomes the delta's *; R-60, …* clause |
+| `canon-delta.md` §7 citations (both rows) | **no re-point needed** — verified by the auditor: every cited `fn` exists in the file the row names. SPEC-001 R-60: `working_directory.rs::{a_relative_argument_resolves_beside_the_config_from_another_directory, a_linked_config_runs_its_backend_beside_the_target, a_relative_program_with_a_slash_is_executed_as_the_anchored_path, a_native_program_receives_its_anchored_path_as_its_name, a_program_that_cannot_be_spawned_is_reported_with_where_it_was_looked_for, a_config_reached_through_a_linked_directory_is_anchored_at_the_target}`, `run.rs::a_program_with_no_slash_is_found_on_path_not_beside_the_config`, `config.rs::tests::the_executable_is_anchored_only_for_a_relative_path_with_a_slash`, `examples.rs::each_shipped_example_is_accepted_by_the_checker`. SPEC-003 R-17: `startup.rs::listener::a_relative_configured_path_binds_beside_the_config`, `config.rs::tests::a_relative_path_resolves_against_the_directory_given`, `ingress.rs::a_path_longer_than_a_socket_address_holds_is_refused_naming_the_path`. No phase recorded a rename | `canon-delta.md` preamble: names are `design.md` §9's until audit | [x] re-checked after code review round 2's repairs: every cited `fn` is still defined in the file its row names (`listener::…` inside `startup.rs`' `mod listener`); none re-pointed |
+| `canon-delta.md` §7, R-60 row — cases not cited | **decision for the person**: whether R-60's row should also cite `working_directory.rs::the_backend_s_pwd_names_its_working_directory` and `error.rs::tests::a_spawn_failure_with_no_working_directory_names_only_the_executable` (VT-9, an addition to §9). Auditor's recommendation: **no** — `PWD` is design, not canon (D12), and VT-9 is the argv form, which R-60 does not govern | completeness of the row against what shipped | [x] the person: **no** extra citations (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*) |
+| `kit/skills/goad-backend/reference/running.md`, `events.md` | **decision for the person** (`plan.md` §Owed): once R-60 / R-17 are promoted, cite them in the kit? Today the rule is in prose under the existing `SPEC-001/R-36` heading and the config table; a new `### SPEC-…` heading would change `coverage.rs`' heading set | the kit cites no draft id (PHASE-03 Notes); after promotion the ids exist | [x] the person: **no** kit citation (`design-log.md` 2026-10-19, *code review round 2, residues, and canon promotion*); the kit is unchanged |
+| code and repository comments citing `SPEC-001/R-60` / `SPEC-003/R-17` | **becomes true on promotion; no edit**. Cited ahead of promotion in `process.rs` (`ProcessBackend::exchange`), `error.rs` (`BackendError::Spawn`'s doc), `working_directory.rs`' module doc, `round_trip.rs` (`the_readme_s_own_config_loads_and_runs_the_example`'s doc), `examples.rs`' module doc, `exercisers/demo.toml`, `.gitignore`. If promotion is declined, each is a citation of nothing and must change before the merge | `docs/AGENTS.md`: nothing outside the slice cites a draft. These are on `slice-015`, which reaches `main` only in the merge that carries the promotion (`plan.md` §Branch and worktree) | [x] verified on promotion: a tree-wide grep for `R-60` and `SPEC-003/R-17` outside `docs/slices/015/` finds those comments, the two spec rows and their prose, SPEC-003 §9, and `docs/slices/012/plan.md`'s hand-off row — each now names canon text that says what the citation claims |
 | `ConfigError::Read`'s doc (`crates/goad-shell/src/error.rs`) and `design.md` D4 / §5.2's error table | **code doc stale → a finding** (code-side, fixable in the slice): both say canonicalization refuses `/dev/stdin` (and `/proc/self/fd/N`). Measured by the auditor: `/dev/stdin` redirected from a regular file canonicalizes to that file, which is then read and anchored at the file's directory; only a pipe, socket or process substitution (`pipe:[…]`) is refused. `design.md` is not edited (*Design drift* below) | the doc states a refusal that does not happen in the common redirect case | [x] repaired, `review-code.md` F-2 (doc comments only) |
 | `Config::parse`'s doc | nit: *"is the only caller that need"* → *needs* | PHASE-01 re-measure | [x] repaired, `review-code.md` F-9 |
 | `startup.rs::listener::socket_path`'s doc | *"the third such helper in this test binary"* — a count, and now false or at risk with `listener::directory` beside it. Pre-existing text, outside PHASE-01's edit of `listener`; a candidate repair for code review, or a follow-up | *never count* (`CLAUDE.md`) | [x] repaired with the class, `review-code.md` F-4 |
@@ -275,12 +310,12 @@ shipped work departs from it:
 
 ## Closure
 
-- [ ] All findings dispositioned; no blockers outstanding
-- [ ] All acceptance criteria met, or explicitly waived by the user
-- [ ] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
-- [ ] Tests and checks green
-- [ ] Specs / policy / ADRs reconciled, with user endorsement where amended
-- [ ] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
+- [x] All findings dispositioned; no blockers outstanding
+- [x] All acceptance criteria met, or explicitly waived by the user
+- [x] Each verification criterion in `plan.md` walked against the code, or the gap measured and carried
+- [x] Tests and checks green
+- [x] Specs / policy / ADRs reconciled, with user endorsement where amended
+- [x] `draft-spec.md` / `canon-delta.md` promoted, or abandoned with the reason written down
 - [ ] `notes.md` §Open swept against `slice-nnn.md` §Follow-ups; every entry dispositioned
 - [ ] `slice-nnn.md` Summary and Follow-ups written
 - [ ] `notes.md` Harvest current; durable facts lifted to `docs/memory/`
