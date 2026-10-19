@@ -136,3 +136,22 @@ other, citing the finding id.
   and unit. Every case that drives a real backend loads its configuration and
   does so from a working directory that is **not** the configuration's."
 - **Decided:** "approve".
+
+### 2026-10-19 — code review round 1 dispositions (audit)
+
+- **Asked:** dispositions for `review-code.md` F-1..F-10. F-1 and F-3
+  `doc-wrong`, amending endorsed `canon-delta.md` wording: R-60's join gains
+  *"each `.` component dropped and each `..` kept as written"*; R-17 gains
+  *"It is joined onto that directory as SPEC-001/R-60 joins a relative
+  program: each `.` component dropped, each `..` kept."*; R-60's §7 row's
+  *"is not observable at the spawn — … — so it is held on the loaded value:"*
+  becomes *"leaves the kernel's working directory the same either way — a
+  directory reached through a link is the target directory — so it is held on
+  the loaded value, from which `PWD`, a relative program's name and the socket
+  path are all taken:"*. F-2, F-4..F-10 `fix-now` (F-2's D4 overstatement also
+  recorded as design drift). And whether `plan.md` §Owed's VH-1 re-run applies
+  when the repairs under `goad_shell::config` and `error.rs` are doc comments
+  only.
+- **Decided:** "yeah what you said, no rerun. confirmed" — all dispositions
+  and both wordings as proposed; no VH-1 re-run, on condition that audit
+  records (by diff) that every repair under those modules is doc-only.
