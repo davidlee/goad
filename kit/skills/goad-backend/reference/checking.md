@@ -62,7 +62,9 @@ When a response carries a view, `goad-check` answers it: the first option,
 with each of its fields at the value it was drawn showing — `false`, `""`,
 the `min` (or `0`), the first alternative, the Unix epoch
 (`SPEC-001/R-58`, in [protocol.md](protocol.md)). If the answer brings
-another view it answers that too, up to 8 answers per request.
+another view it answers that too, up to 8 answers per request. That bound
+is the checker's alone: goad has none, and a person can answer as many views
+in a row as your backend sends.
 
 There is no way to set `now`. A backend that shows views only at some hours is
 checked at the hour you run it; if no exchange returned a view, the report says
