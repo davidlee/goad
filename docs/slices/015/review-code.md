@@ -116,16 +116,19 @@ Lines of attack:
 
 | id | severity | disposition | outcome |
 |----|----------|-------------|---------|
-| F-1 | minor | doc-wrong | |
-| F-2 | minor | fix-now | |
-| F-3 | minor | doc-wrong | |
-| F-4 | minor | fix-now | |
-| F-5 | nit | fix-now | |
-| F-6 | nit | fix-now | |
-| F-7 | nit | fix-now | |
-| F-8 | nit | fix-now | |
-| F-9 | nit | fix-now | |
-| F-10 | nit | fix-now | |
+| F-1 | minor | doc-wrong | verified |
+| F-2 | minor | fix-now | verified |
+| F-3 | minor | doc-wrong | verified |
+| F-4 | minor | fix-now | verified |
+| F-5 | nit | fix-now | verified |
+| F-6 | nit | fix-now | verified |
+| F-7 | nit | fix-now | verified |
+| F-8 | nit | fix-now | verified |
+| F-9 | nit | fix-now | verified |
+| F-10 | nit | fix-now | verified |
+| F-11 | nit | | |
+| F-12 | nit | | |
+| F-13 | nit | | |
 
 ### F-1 — R-60 and R-17 promise "the joined path", but the join drops `.` and no rule says so
 
@@ -175,7 +178,7 @@ path"* — both now lean on R-60's amended definition of the join and read
 true by it; §6.4 does not restate the `.` rule. Whether it should is wording
 beyond the endorsed text.
 
-**Outcome:**
+**Outcome:** verified — `canon-delta.md` R-60 and R-17 carry the person's endorsed words exactly (compared against `design-log.md` 2026-10-19, *code review round 1 dispositions*); `anchored`'s and its test's docs now say *each* `.` and *a path of `.` components only*, which the `./` row bears out; `running.md` gives the worked example. §6.4's *receives that path as its name* reads true under the amended join.
 
 ### F-2 — `ConfigError::Read`'s and `Config::load`'s docs name refusals that do not happen
 
@@ -217,7 +220,7 @@ prints nothing (exit 1): every changed line under `crates/goad-shell/src/`
 is a `///`, `//!` or `//` line, so the person's no-VH-1-re-run condition
 holds (`config.rs`, `error.rs`; nothing under `backend/` changed).
 
-**Outcome:**
+**Outcome:** verified — re-checked against the round-1 measurements: a pipe or socket descriptor is refused, a regular file loads, `/` is the only input the `parent()` arm reaches. Doc-only, verified independently (round 2 Synthesis).
 
 ### F-3 — "Not observable at the spawn" is false for a directory link: `PWD` and `$0` observe it
 
@@ -261,7 +264,7 @@ asserts (the command's working directory and the socket path) instead of
 *"`PWD`, the socket path and its byte length"*, which the case does not
 assert directly.
 
-**Outcome:**
+**Outcome:** verified — the §7 row's sentence is the endorsed text exactly, and the test's doc matches it; it now names `PWD`, a relative program's name and the socket path as taken from the loaded value, which is what `ProcessBackend::exchange` and `ingress_config` do.
 
 ### F-4 — The slice added helpers and left counts of them standing elsewhere
 
@@ -308,7 +311,7 @@ such helper in this test binary is"*), and
 `crates/goad/tests/renderer/ingress.rs::socket_path` (*"made by every helper
 of `claim`'s class … `claim`'s own doc names each"*).
 
-**Outcome:**
+**Outcome:** verified — the three counts are gone and the sweep found a fourth (`crates/goad/tests/renderer/ingress.rs::socket_path`, *four more helpers … two in `goad-emit`*), the class this finding was about. A re-grep for counted or ordinal references to `claim`'s class finds none. The repair's own reflow is F-11.
 
 ### F-5 — Three citations name the wrong source
 
@@ -341,7 +344,7 @@ doc cites `design.md` §5.5's I-1. `error.rs` — `BackendError::Spawn`'s doc
 cites `design.md` D2 for `None` and says R-60 governs only a command loaded
 from a file. Doc lines only (see F-2's check).
 
-**Outcome:**
+**Outcome:** verified — D5/D6, §5.5's I-1 and D2 are the right sources (`design.md` §7, §5.5).
 
 ### F-6 — Two `claim` kinds mint the same `goad-wd-<case>-<pid>.d` shape
 
@@ -373,7 +376,7 @@ would not use it), so the copies are defensible — the shared shape is not.
 both shapes, `goad-startup-<name>-<pid>.d` and `goad-wd-<name>-<pid>.d`,
 among the held helpers' paths; it names each helper and counts none.
 
-**Outcome:**
+**Outcome:** verified — `listener::directory` mints `goad-startup-<case>-<pid>.d`; its doc's claim that the `.d` keeps it apart from `socket_path`'s `goad-startup-<case>-<pid>.sock` in the same binary is true, and the shared prefix is what `claim`'s doc allows (one kind per helper, not per prefix). No two kinds now mint one shape.
 
 ### F-7 — `run.rs::root`'s directories are never removed
 
@@ -405,7 +408,7 @@ class cleared at hand-out; the directory helpers were the closer precedent.
 Observed after the gate run: no `goad-check-*.d` directory for that run's
 pid remained under `/tmp` (older runs' remain; not removed by this repair).
 
-**Outcome:**
+**Outcome:** verified — both cases remove their root on success; the doc says a failing case leaves it, as `handout`'s does.
 
 ### F-8 — The `goad-emit` AC-5 case starts in the shared `temp_dir()`
 
@@ -447,7 +450,7 @@ status 2, not 0, no hang — and
 `./from-config.sock`). Restored by copy; `config.rs` afterwards differs from
 `024643d` in comment lines only, `git status` shows no untracked file.
 
-**Outcome:**
+**Outcome:** verified — the case starts in `<home>/start`, its own, and the repairer's natural red (compiled, `--no-fail-fast`) shows the regression fails with status 2 rather than hanging. Green in the reviewer's gate run. The AC-5 row in `audit.md` that described the old start directory was not updated (F-12).
 
 ### F-9 — Prose that says slightly more, or less, than the code
 
@@ -489,7 +492,7 @@ entry in `PATH` names a directory under the backend's working directory"*
 carries the same *under* looseness as the kit line did; endorsed canon
 wording, so not edited.
 
-**Outcome:**
+**Outcome:** verified — each item is true of the code: `goad-check` is credited with the backend only; a relative `PATH` entry *is relative to that directory*, as the reviewer's round-1 run showed; `Command`'s doc names the working directory; the grammar; the module doc. The same *under* in `canon-delta.md` §6.4 was left for the person without a row (F-13).
 
 ### F-10 — Doc comments left unwrapped
 
@@ -513,6 +516,72 @@ lead for `config.rs` and `startup.rs`; `tree.rs` is the reviewer's.
 added (`git diff -U0 c68a624 -- '*.rs'`, added `//` lines over 80 columns):
 those three, and one 81-column line in `round_trip.rs`, which matches that
 file's own wrap (it has lines to 84) and was left.
+
+**Outcome:** verified — the three named docs are reflowed. A new over-long line was introduced by F-4's repair, not missed here (F-11).
+
+### F-11 — F-4's repair left one doc line unwrapped and two paragraphs half-reflowed
+
+**Severity:** nit
+**Location:** `crates/goad/tests/renderer/ingress.rs` — `socket_path`'s doc;
+`crates/goad/tests/renderer/startup.rs` — `listener::socket_path`'s doc;
+`tests/support/scripting.rs` — `claim`'s doc
+
+**Expected:** F-10's rule, applied to the lines the round-1 repairs wrote.
+**Observed:** `renderer/ingress.rs::socket_path`'s doc now has a 97-column
+line (*"F-17, F-22). It matters more here than for a marker: two cases
+sharing a socket path share a"*), written by `c44ee07`. The edited paragraphs
+in `listener::socket_path` (*"binary is (`review-code.md` F-11). The stake is
+the"*) and `claim` (*"that all of them share (F-21). What holds a"*) end
+mid-paragraph on short lines. F-10's class check covered lines the slice
+added before the repairs, not the repairs' own.
+**Evidence:** `git diff 024643d c44ee07 -- crates tests | grep '^+' | awk
+'length > 86'` → the `ingress.rs` line.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-12 — `audit.md`'s AC-5 row still says the `goad-emit` case starts in `temp_dir()`
+
+**Severity:** nit
+**Location:** `docs/slices/015/audit.md` — *Acceptance criteria*, AC-5 row
+
+**Expected:** evidence that describes the test as it now is.
+**Observed:** the row cites
+`exchange.rs::a_relative_configured_socket_is_found_beside_the_configuration`
+as *"(started in `temp_dir()`, no `--socket`)"*. F-8's repair moved the start
+directory to `<home>/start`, a directory the case owns, so the evidence now
+describes the test as it was before the repair. (*Leads for the code
+reviewer* also says `temp_dir()`, but that list records what was raised, and
+reads true as history.)
+**Evidence:** `grep -n 'started in \`temp_dir()\`' docs/slices/015/audit.md`
+→ the AC-5 row; `exchange.rs`: `emit_from(&start, &home, …)`.
+
+**Disposition:**
+**Response:**
+
+**Outcome:**
+
+### F-13 — `canon-delta.md` §6.4 keeps the *under* that F-9 repaired in the kit, with no row
+
+**Severity:** nit
+**Location:** `canon-delta.md` SPEC-001 Change 2 (§6.4): *"a relative entry in
+`PATH` names a directory under the backend's working directory"*
+
+**Expected:** a looseness found in the kit and repaired there is either
+repaired in canon too or carried in the ledger so the person decides it.
+F-9's Response says *"Left for the person … not edited"*, but no finding
+or row records it, so promotion would copy it into SPEC-001 unnoticed.
+**Observed:** a `PATH` entry such as `../bin` names a directory *above* the
+working directory. `running.md` now says *"is relative to that directory"*;
+the canon it paraphrases still says *under*. Endorsed wording, so changing it
+is the person's call.
+**Evidence:** the quoted §6.4 sentence; `running.md` *Name your command*
+after `c44ee07`.
+
+**Disposition:**
+**Response:**
 
 **Outcome:**
 
@@ -589,3 +658,45 @@ carry it).
 **Left standing, not raised:** the AC-5 startup case removes
 `crates/goad/goad.sock` and its lock before running whether or not it made
 them — harmless unless someone keeps a config in `crates/goad`.
+
+**Round 2 (raiser)** — 2026-10-19 — the repairs, `024643d..c44ee07`.
+
+**Outcomes:** F-1 to F-10 all `verified`. Three new nits, F-11 to F-13. No
+blocker, no major, nothing contested.
+
+**Checked and found complete:**
+
+- **Canon wording.** `canon-delta.md`'s amended R-60 (*"each `.` component
+  dropped and each `..` kept as written"*), R-17 (*"It is joined onto that
+  directory as SPEC-001/R-60 joins a relative program: each `.` component
+  dropped, each `..` kept."*) and the R-60 §7 directory-link sentence are,
+  word for word, the text the person endorsed in `design-log.md` 2026-10-19,
+  *code review round 1 dispositions*. Nothing else in the canon rows changed.
+  The **Status** line records the amendment.
+- **The doc-only condition, checked independently.** For each file
+  `c44ee07` changed under `crates/goad-shell/src/` (`config.rs`,
+  `error.rs`), the reviewer stripped every line that is a `//`-family
+  comment from both `024643d` and `c44ee07` and diffed what was left: it is
+  identical. No other production source changed (`git diff --name-only
+  024643d c44ee07 -- crates/*/src` lists only those two). The person's
+  condition for not re-running VH-1 holds.
+- **Gate:** `just check` exit 0 at `c44ee07`, run by the reviewer;
+  `exchange::a_relative_configured_socket_is_found_beside_the_configuration`
+  green from its new start directory.
+- **Class sweeps.** No counted or ordinal reference to `claim`'s class is
+  left (re-grep). `goad-startup-…` is shared by a `.sock` and a `.d` helper in
+  one binary, which their docs and `claim`'s state correctly. No added doc
+  line cites a line number of a moving file.
+
+**Did any repair make anything worse?** Nothing in code or behaviour. Two
+records came out slightly worse. F-4's repair introduced an unwrapped line
+(F-11). F-8's repair left `audit.md`'s AC-5 evidence describing the test's
+old start directory (F-12). F-13 is not a regression: a kit repair that was
+deliberately not carried into endorsed canon, now on the ledger so it
+reaches the person before promotion.
+
+**Noted, not raised:** the new `ConfigError::Read` / `Config::load` docs name
+*a descriptor that is not a file* and give a pipe and a socket as examples.
+A tty or `/dev/null` behind `/dev/stdin` canonicalizes too, and fails later or
+as a parse error rather than as `Read`. The examples bound the claim, and
+the docs say nothing false about those cases.
