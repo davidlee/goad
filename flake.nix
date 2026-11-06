@@ -4,14 +4,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     rust-overlay.url = "github:oxalica/rust-overlay";
-    agents = {
-      url = "github:davidlee/nix-config?dir=flakes/agents";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     crane.url = "github:ipetkov/crane";
   };
 
-  outputs = inputs @ {
+  outputs = {
     self,
     nixpkgs,
     rust-overlay,
@@ -25,8 +21,6 @@
       overlays = [rust-overlay.overlays.default];
     };
     inherit (pkgs) lib stdenv;
-
-    jailLib = inputs.agents.lib.${system}.mkJailedAgents {};
 
     # Shared libraries a Slint binary dlopen()s at runtime. Not build inputs —
     # they must be on LD_LIBRARY_PATH inside and outside the jail or the window
@@ -44,7 +38,18 @@
     # (D12, design.md §5.5 D12). `makeFontsConf` writes a `fonts.conf` naming
     # this store path explicitly, and the Slint cheap test tier needs a real
     # font to construct a component at all.
+    #
+    # A jail sees only the closure of `dev-tools`, and there is no /etc/fonts
+    # inside, so the conf file must be in that closure: `fontsConfPkg`. Measured,
+    # not assumed: with a fontless config, 58 of the 156 `-p goad --test renderer`
+    # cases panic in `fontique-…/backend/fontconfig.rs` with `NoMatch`.
     fontsConf = pkgs.makeFontsConf {fontDirectories = [pkgs.dejavu_fonts];};
+    fontsConfPkg = pkgs.linkFarm "goad-fonts-conf" [
+      {
+        name = "etc/goad/fonts.conf";
+        path = fontsConf;
+      }
+    ];
 
     # A nested, headless Wayland compositor, so an agent can run the GUI and
     # photograph it **without the host's compositor being in the jail at all**.
@@ -58,8 +63,11 @@
     # (CPU) renderer, and Slint renders in software for the same reason, so
     # nothing here needs /dev/dri. If it turns out too slow, binding /dev/dri
     # is the upgrade — still far short of exposing the host's session.
+    #
+    # A runtime directory of its own, whatever the caller's says: a pi jail
+    # forwards the host's path, which it cannot write.
     headlessEnv = ''
-      export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/tmp/xdg-runtime}"
+      export XDG_RUNTIME_DIR=/tmp/xdg-runtime
       mkdir -p "$XDG_RUNTIME_DIR" && chmod 700 "$XDG_RUNTIME_DIR"
       export WLR_BACKENDS=headless
       export WLR_LIBINPUT_NO_DEVICES=1
@@ -126,80 +134,40 @@
       just
 
       # Claude Code runs Bash-tool commands under bash or zsh only; give it a
-      # real bash (see CLAUDE_CODE_SHELL below).
+      # real bash.
       bashInteractive
       stdenv.cc # cc/ld on PATH — cargo's linker
       git
     ];
 
     # What a build and test run needs with no display: the oubliette room's
-    # tool set (`packages.dev-tools`).
+    # tool set (`packages.capsule-tools`).
     headlessPkgs =
       devToolPkgs
       ++ [pkgs.deno pkgs.socat]
       ++ [pkgs.python3 pkgs.jq]; # the kit examples' interpreters, spawned by the `kit` test tier
 
+    # What `yeslogic-fontconfig-sys` finds through pkg-config at build time: a
+    # buildEnv, unlike mkShell, collects no dev outputs on its own. freetype and
+    # expat are fontconfig.pc's own requirements.
+    guiDevLibs = map lib.getDev (guiLibs ++ [pkgs.freetype pkgs.expat]);
+
+    # The room's set plus the GUI: what a jail and the devshell need to run the
+    # app and photograph it (`packages.dev-tools`). The room stays headless.
     projectPkgs =
       headlessPkgs
-      ++ [pkgs.nodejs_latest] # for pi
       ++ [goadHeadless goadShot pkgs.cage pkgs.grim]
       ++ guiLibs
-      ++ [jailLib.agentsByName.claude jailLib.agentsByName.codex];
+      ++ guiDevLibs
+      ++ [fontsConfPkg pkgs.tzdata];
 
-    jailEnvOptions = with jailLib.combinators; [
-      (set-env "LD_LIBRARY_PATH" (lib.makeLibraryPath guiLibs))
-      # Claude Code auto-detects its Bash-tool shell from $SHELL and falls back
-      # to "first working zsh, then bash" — so a jailed agent lands on the jail's
-      # zsh and gets zsh globbing semantics it does not expect (`grep
-      # --include=*.md` dies with `no matches found`). Pin the store path:
-      # /bin/bash and /run/current-system are not jail-visible. A bad value is
-      # ignored, so this cannot hard-break.
-      (set-env "CLAUDE_CODE_SHELL" "${pkgs.bashInteractive}/bin/bash")
-      # slint sources
-      (ro-bind "/home/david/.local/src/slint" "/workspace/slint")
-
-      # Fonts. The devShell sets both of these; the jail set only
-      # LD_LIBRARY_PATH, and fontconfig finds nothing without a config file —
-      # there is no /etc/fonts inside. Measured, not assumed: with a fontless
-      # config, 58 of the 156 `-p goad --test renderer` cases panic in
-      # `fontique-…/backend/fontconfig.rs` with `NoMatch`. The font files ride
-      # in on fontconfig's own closure; only the conf file needs binding.
-      (set-env "FONTCONFIG_FILE" "${fontsConf}")
-      (ro-bind "${fontsConf}" "${fontsConf}")
-
-      # A place for a nested compositor to put its socket. bwrap starts from a
-      # clean environment, so nothing sets this; `--tmpfs /tmp` is where it can
-      # go. Deliberately **not** the host's /run/user/1000: the host's Wayland
-      # socket stays out of the jail (see `headlessGui`).
-      (set-env "XDG_RUNTIME_DIR" "/tmp/xdg-runtime")
-    ];
-
-    # Every jail reaches models through the local LLM gateway with the
-    # shared `pi` key (~/.config/llm-gateway/keys/pi); no provider key
-    # enters a jail.
-    gateway = jailLib.gatewayClient "pi";
-
-    mkJail = maker: args:
-      maker ({
-          profile = "specDev";
-          extraPkgs = projectPkgs;
-          extraOptions = jailEnvOptions;
-          inherit gateway;
-        }
-        // args);
-
-    jailPkgs = {
-      jailed-claude = mkJail jailLib.makeJailedClaude {
-        allowSelfAsSubagent = true;
-        subagents = ["codex"];
-        maxSubagentDepth = 2;
-      };
-      jailed-codex = mkJail jailLib.makeJailedCodex {
-        subagents = ["claude" "codex"];
-      };
-      jailed-pi = mkJail jailLib.makeJailedPi {
-        allowSelfAsSubagent = true;
-      };
+    # What those tools need beyond packages, in every jail, form and shell.
+    projectEnv = {
+      LD_LIBRARY_PATH = lib.makeLibraryPath guiLibs;
+      FONTCONFIG_FILE = "${fontsConf}";
+      PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" guiDevLibs;
+      # jiff reads zones from disk, and a jail has no /usr/share/zoneinfo.
+      TZDIR = "${pkgs.tzdata}/share/zoneinfo";
     };
 
     # ---- the packages ----
@@ -342,18 +310,23 @@
       }} $out
     '';
   in {
-    # A merge, not a replacement: the three jail packages stay exported, and
-    # losing one is a regression nothing in the gate would see.
     packages.${system} =
-      jailPkgs
-      // goadPackages
+      goadPackages
       // {inherit goad-kit;}
       // {
         default = goadPackages.goad;
-        # One closure, so the VM and the devshell can't drift. No agents: the
-        # room supplies them.
+        # What dev-envs builds the jails, forms and shell from. No agents: the
+        # consumer supplies them.
         dev-tools = pkgs.buildEnv {
           name = "goad-dev-tools";
+          paths = projectPkgs;
+          ignoreCollisions = true;
+          passthru.devEnv.env = projectEnv;
+        };
+        # The room's tool set, without the GUI. No agents: the room supplies
+        # them.
+        capsule-tools = pkgs.buildEnv {
+          name = "goad-capsule-tools";
           paths = headlessPkgs;
           ignoreCollisions = true;
         };
@@ -365,20 +338,6 @@
     # `packages.${pkgs.system}` to say which build the unit runs.
     homeManagerModules.default = import ./nix/module.nix;
 
-    devShells.${system}.default = pkgs.mkShell {
-      packages =
-        projectPkgs
-        ++ (with jailLib.unjailed; [claude codex])
-        ++ lib.attrValues jailPkgs;
-
-      LD_LIBRARY_PATH = lib.makeLibraryPath guiLibs;
-      FONTCONFIG_FILE = fontsConf;
-
-      shellHook = ''
-        alias jcl='jailed-claude --dangerously-skip-permissions'
-        alias jcx='jailed-codex'
-        alias jpi='jailed-pi'
-      '';
-    };
+    devShells.${system}.default = pkgs.mkShell ({packages = projectPkgs;} // projectEnv);
   };
 }
